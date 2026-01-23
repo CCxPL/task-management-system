@@ -1,0 +1,19 @@
+#================Python/ Django================
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+db.sqlite3
+media/
+staticfiles/
+
+
+#================React / Node================
+node_modules/
+dist/
+build/
+
+
+#================ OS Files =================
+.DS_Store
