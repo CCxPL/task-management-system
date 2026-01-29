@@ -1,0 +1,19 @@
+// Light theme
+:root {
+    --primary-color: #0052CC;
+    --secondary-color: #172B4D;
+    --bg-default: #F4F5F7;
+    --bg-paper: #FFFFFF;
+    --text-primary: #172B4D;
+    --text-secondary: #6B778C;
+}
+
+// Dark theme
+[data-theme="dark"] {
+    --primary-color: #4C9AFF;
+    --secondary-color: #B3BAC5;
+    --bg-default: #1B2638;
+    --bg-paper: #222D3E;
+    --text-primary: #E6EDF6;
+    --text-secondary: #B3BAC5;
+}

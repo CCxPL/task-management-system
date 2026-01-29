@@ -80,7 +80,7 @@ const Reports = () => {
             console.log('📥 Fetching report for project:', projectId);
             
             const response = await fetch(
-                `http://localhost:8000/api/reports/project/?project=${projectId}`,
+                `${import.meta.env.VITE_API_URL}/api/reports/project/?project=${projectId}`,
                 {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('access_token')}`

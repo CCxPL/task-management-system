@@ -47,7 +47,7 @@ const IssueDetailModal = ({ open, onClose, issue, onUpdate }) => {
         try {
             setLoadingComments(true);
             const response = await fetch(
-                `http://localhost:8000/api/issues/${issue.id}/comments/`,
+                `${import.meta.env.VITE_API_URL}/api/issues/${issue.id}/comments/`,
                 {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('access_token')}`
@@ -71,7 +71,7 @@ const IssueDetailModal = ({ open, onClose, issue, onUpdate }) => {
         try {
             setLoading(true);
             const response = await fetch(
-                `http://localhost:8000/api/issues/${issue.id}/comments/`,
+                `${import.meta.env.VITE_API_URL}/api/issues/${issue.id}/comments/`,
                 {
                     method: 'POST',
                     headers: {
@@ -106,7 +106,7 @@ const IssueDetailModal = ({ open, onClose, issue, onUpdate }) => {
 
         try {
             const response = await fetch(
-                `http://localhost:8000/api/issues/${issue.id}/comments/${commentId}/`,
+                `${import.meta.env.VITE_API_URL}/api/issues/${issue.id}/comments/${commentId}/`,
                 {
                     method: 'DELETE',
                     headers: {

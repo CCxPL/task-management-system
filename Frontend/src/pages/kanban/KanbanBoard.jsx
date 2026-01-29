@@ -99,7 +99,7 @@ const KanbanBoard = () => {
             const token = localStorage.getItem('access_token') || localStorage.getItem('token');
             
             // Fetch workflow
-            const workflowRes = await fetch('http://localhost:8000/api/workflows/workflows/', {
+            const workflowRes = await fetch('${import.meta.env.VITE_API_URL}/api/workflows/workflows/', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const workflows = await workflowRes.json();
@@ -113,7 +113,7 @@ const KanbanBoard = () => {
 
             // Fetch statuses
             const statusRes = await fetch(
-                `http://localhost:8000/api/workflows/workflows/${activeWorkflow.id}/statuses/list/`,
+                `${import.meta.env.VITE_API_URL}/api/workflows/workflows/${activeWorkflow.id}/statuses/list/`,
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );
             const statuses = await statusRes.json();
