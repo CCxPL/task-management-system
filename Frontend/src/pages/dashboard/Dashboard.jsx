@@ -335,7 +335,7 @@ const [credentialsDialog, setCredentialsDialog] = useState({
   try {
     console.log('📝 Creating member:', memberForm);
     
-    const response = await fetch('http://localhost:8000/api/accounts/create-org-user/', {
+    const response = await fetch('${import.meta.env.VITE_API_URL}/api/accounts/create-org-user/', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('access_token')}`,

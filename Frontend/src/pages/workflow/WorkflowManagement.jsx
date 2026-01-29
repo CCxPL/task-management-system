@@ -82,7 +82,7 @@ const WorkflowManagement = () => {
     try {
       setLoading(true);
       
-      const workflowRes = await fetch('http://localhost:8000/api/workflows/workflows/', {
+      const workflowRes = await fetch('${import.meta.env.VITE_API_URL}/api/workflows/workflows/', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`
         }
@@ -99,7 +99,7 @@ const WorkflowManagement = () => {
       setWorkflow(activeWorkflow);
 
       const statusRes = await fetch(
-        `http://localhost:8000/api/workflows/workflows/${activeWorkflow.id}/statuses/list/`,
+        `${import.meta.env.VITE_API_URL}/api/workflows/workflows/${activeWorkflow.id}/statuses/list/`,
         { headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` } }
       );
       const statusData = await statusRes.json();
@@ -109,7 +109,7 @@ const WorkflowManagement = () => {
       setStatuses(sortedStatuses);
 
       const transRes = await fetch(
-        `http://localhost:8000/api/workflows/workflows/${activeWorkflow.id}/transitions/list/`,
+        `${import.meta.env.VITE_API_URL}/api/workflows/workflows/${activeWorkflow.id}/transitions/list/`,
         { headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` } }
       );
       const transData = await transRes.json();
@@ -173,7 +173,7 @@ const WorkflowManagement = () => {
       console.log('📤 Sending to backend:', orderArray);
       
       const response = await fetch(
-        `http://localhost:8000/api/workflows/workflows/${workflow.id}/statuses/reorder/`,
+        `${import.meta.env.VITE_API_URL}/api/workflows/workflows/${workflow.id}/statuses/reorder/`,
         {
           method: 'PATCH',
           headers: {
@@ -211,7 +211,7 @@ const WorkflowManagement = () => {
   const handleAddStatus = async () => {
     try {
       const response = await fetch(
-        `http://localhost:8000/api/workflows/workflows/${workflow.id}/statuses/`,
+        `${import.meta.env.VITE_API_URL}/api/workflows/workflows/${workflow.id}/statuses/`,
         {
           method: 'POST',
           headers: {
@@ -244,7 +244,7 @@ const WorkflowManagement = () => {
   const handleEditStatus = async () => {
     try {
       const response = await fetch(
-        `http://localhost:8000/api/workflows/workflows/${workflow.id}/statuses/${editingStatus.id}/`,
+        `${import.meta.env.VITE_API_URL}/api/workflows/workflows/${workflow.id}/statuses/${editingStatus.id}/`,
         {
           method: 'PATCH',
           headers: {
@@ -278,7 +278,7 @@ const WorkflowManagement = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:8000/api/workflows/workflows/${workflow.id}/statuses/${statusId}/delete/`,
+        `${import.meta.env.VITE_API_URL}/api/workflows/workflows/${workflow.id}/statuses/${statusId}/delete/`,
         {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
@@ -302,7 +302,7 @@ const WorkflowManagement = () => {
   const handleAddTransition = async () => {
     try {
       const response = await fetch(
-        `http://localhost:8000/api/workflows/workflows/${workflow.id}/transitions/`,
+        `${import.meta.env.VITE_API_URL}/api/workflows/workflows/${workflow.id}/transitions/`,
         {
           method: 'POST',
           headers: {
@@ -334,7 +334,7 @@ const WorkflowManagement = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:8000/api/workflows/workflows/${workflow.id}/transitions/${transitionId}/delete/`,
+        `${import.meta.env.VITE_API_URL}/api/workflows/workflows/${workflow.id}/transitions/${transitionId}/delete/`,
         {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
@@ -357,7 +357,7 @@ const WorkflowManagement = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:8000/api/workflows/workflows/${workflow.id}/transitions/auto-create/`,
+        `${import.meta.env.VITE_API_URL}/api/workflows/workflows/${workflow.id}/transitions/auto-create/`,
         {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
