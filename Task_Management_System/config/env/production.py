@@ -6,11 +6,9 @@ DEBUG = False
 ALLOWED_HOSTS = [
     "task.yourdesk.cloud",
     "www.task.yourdesk.cloud",
-<<<<<<< HEAD
-=======
+
     "127.0.0.1",
     "localhost",
->>>>>>> 49d0503cec7151ab9e29775c6ecb2a0d48c67810
 ]
 DATABASES = {
     "default": {
