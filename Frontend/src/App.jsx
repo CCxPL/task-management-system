@@ -5,6 +5,8 @@ import { fetchProjects } from './app/slices/projectSlice';
 import { fetchTeamMembers } from './app/slices/teamSlice';
 import { setCurrentProject } from './app/slices/projectContextSlice';
 import AppRoutes from './routes/AppRoutes';
+// ❌ Remove this line - not needed here
+// import WorkflowManagement from './pages/workflow/WorkflowManagement';
 
 function App() {
   const dispatch = useDispatch();

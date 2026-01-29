@@ -9,7 +9,6 @@ import {
     Typography,
     Button,
     Chip,
-    LinearProgress,
     List,
     ListItem,
     ListItemText,
@@ -22,8 +21,6 @@ import {
 import {
     People as PeopleIcon,
     PlayArrow as SprintIcon,
-    Assignment as TaskIcon,
-    Timeline as TimelineIcon,
     ViewKanban as KanbanIcon,
 } from '@mui/icons-material';
 import { projectsAPI } from '../../api/projects.api.js';
@@ -37,7 +34,7 @@ const ProjectDashboard = () => {
     const dispatch = useDispatch();
     const [project, setProject] = useState(null);
     const [sprints, setSprints] = useState([]);
-    const [issues, setIssues] = useState([]);
+    const [issues, setIssues] = useState([]); // ✅ Initialize as array
     const [loading, setLoading] = useState(true);
     const { user } = useSelector((state) => state.auth);
 
@@ -53,49 +50,93 @@ const ProjectDashboard = () => {
     const fetchProjectData = async () => {
         try {
             setLoading(true);
-            const [projectData, sprintsData, issuesData] = await Promise.all([
-                projectsAPI.getProjectById(id),
-                sprintsAPI.getSprintsByProject(id),
-                issuesAPI.getIssues(id),
-            ]);
+            
+            // ✅ Fetch data sequentially with proper error handling
+            const projectData = await projectsAPI.getProjectById(id);
+            console.log('📂 Project data:', projectData);
             setProject(projectData);
-            setSprints(sprintsData);
-            setIssues(issuesData);
+            
+            const sprintsData = await sprintsAPI.getSprintsByProject(id);
+            console.log('🏃 Sprints data:', sprintsData);
+            setSprints(Array.isArray(sprintsData) ? sprintsData : []);
+            
+            const issuesData = await issuesAPI.getIssues(id);
+            console.log('📋 Issues data:', issuesData, 'Type:', typeof issuesData);
+            
+            // ✅ CRITICAL: Ensure issues is always an array
+            if (Array.isArray(issuesData)) {
+                setIssues(issuesData);
+            } else if (issuesData && typeof issuesData === 'object' && issuesData.results) {
+                setIssues(issuesData.results);
+            } else {
+                console.warn('⚠️ Issues data is not an array:', issuesData);
+                setIssues([]);
+            }
+            
         } catch (error) {
-            console.error('Error fetching project data:', error);
+            console.error('❌ Error fetching project data:', error);
+            setProject(null);
+            setSprints([]);
+            setIssues([]);
         } finally {
             setLoading(false);
         }
     };
 
     const handleOpenKanban = () => {
+        // ✅ Set current project before navigating
+        if (project) {
+            dispatch(setCurrentProject(project));
+        }
         navigate('/kanban');
-
     };
 
     if (loading) return <Loader />;
-    if (!project) return <Typography>Project not found</Typography>;
+    if (!project) return (
+        <Box p={3}>
+            <Typography variant="h5" color="error">Project not found</Typography>
+            <Button onClick={() => navigate('/projects')} sx={{ mt: 2 }}>
+                Back to Projects
+            </Button>
+        </Box>
+    );
 
-    // Calculate stats
-    const activeSprint = sprints.find(s => s.status === 'ACTIVE');
+    // ✅ Calculate stats with safe array checks
+    const activeSprint = Array.isArray(sprints) 
+        ? sprints.find(s => s.status === 'ACTIVE') 
+        : null;
+    
     const taskSummary = {
-        total: issues.length,
-        todo: issues.filter(i => i.status === 'TO_DO').length,
-        inProgress: issues.filter(i => i.status === 'IN_PROGRESS').length,
-        done: issues.filter(i => i.status === 'DONE').length,
+        total: Array.isArray(issues) ? issues.length : 0,
+        todo: Array.isArray(issues) 
+            ? issues.filter(i => 
+                i.status === 'TO_DO' || 
+                i.workflow_status?.slug === 'to-do' ||
+                i.workflow_status?.slug === 'backlog'
+              ).length 
+            : 0, // ✅ FIXED: was "odo"
+        inProgress: Array.isArray(issues) 
+            ? issues.filter(i => 
+                i.status === 'IN_PROGRESS' || 
+                i.workflow_status?.slug === 'in-progress'
+              ).length 
+            : 0,
+        done: Array.isArray(issues) 
+            ? issues.filter(i => 
+                i.status === 'DONE' || 
+                i.workflow_status?.slug === 'done'
+              ).length 
+            : 0,
     };
 
     // Responsive styles
     const responsiveStyles = {
-        // Main container
         mainContainer: {
             padding: isMobile ? '12px' : '24px',
             width: '100%',
             maxWidth: '100%',
             overflowX: 'hidden',
         },
-
-        // Header section
         headerContainer: {
             display: 'flex',
             flexDirection: isMobile ? 'column' : 'row',
@@ -104,46 +145,33 @@ const ProjectDashboard = () => {
             gap: isMobile ? '16px' : '0',
             marginBottom: isMobile ? '20px' : '32px',
         },
-
-        // Heading sizes
         heading: {
             fontSize: isMobile ? '1.5rem' : isTablet ? '1.75rem' : '2rem',
             fontWeight: 'bold',
             lineHeight: 1.2,
         },
-
         subHeading: {
             fontSize: isMobile ? '1rem' : '1.25rem',
         },
-
-        // Chip container
         chipContainer: {
             display: 'flex',
             flexWrap: 'wrap',
             gap: '8px',
             marginTop: '16px',
         },
-
-        // Button responsive
         button: {
             minHeight: '44px',
             fontSize: isMobile ? '0.875rem' : '0.9375rem',
             padding: isMobile ? '8px 16px' : '10px 20px',
             width: isMobile ? '100%' : 'auto',
         },
-
-        // Grid container
         gridContainer: {
             margin: isMobile ? '-8px' : '-12px',
             width: 'calc(100% + 16px)',
         },
-
-        // Grid item
         gridItem: {
             padding: isMobile ? '8px' : '12px',
         },
-
-        // Paper containers
         paperContainer: {
             border: '2px solid #00000066',
             borderRadius: 1,
@@ -151,20 +179,16 @@ const ProjectDashboard = () => {
             marginBottom: '16px',
             height: 'auto',
         },
-
-        // Task summary grid
         taskGridContainer: {
             display: 'flex',
             flexDirection: isMobile ? 'column' : 'row',
             gap: isMobile ? '12px' : '16px',
             marginTop: isMobile ? '16px' : '24px',
         },
-
         taskGridItem: {
             width: isMobile ? '100%' : '25%',
             padding: isMobile ? '0' : '0 4px',
         },
-
         taskPaper: {
             padding: isMobile ? '12px' : '16px',
             textAlign: 'center',
@@ -177,19 +201,15 @@ const ProjectDashboard = () => {
             border: '2px solid #00000066',
             borderRadius: 1,
         },
-
         taskNumber: {
             fontSize: isMobile ? '1.5rem' : '2rem',
             fontWeight: 'bold',
             lineHeight: 1,
         },
-
         taskLabel: {
             fontSize: isMobile ? '0.875rem' : '1rem',
             marginTop: '4px',
         },
-
-        // List items responsive
         listItem: {
             border: '1px solid #00000033',
             borderRadius: 1,
@@ -199,19 +219,14 @@ const ProjectDashboard = () => {
                 marginBottom: 0,
             }
         },
-
-        // Avatar size
         avatar: {
             width: isMobile ? '32px' : '40px',
             height: isMobile ? '32px' : '40px',
             fontSize: isMobile ? '0.875rem' : '1rem',
         },
-
-        // Typography responsive
         bodyText: {
             fontSize: isMobile ? '0.875rem' : '1rem',
         },
-
         smallText: {
             fontSize: isMobile ? '0.75rem' : '0.875rem',
         },
@@ -229,7 +244,7 @@ const ProjectDashboard = () => {
                         {project.key}
                     </Typography>
                     <Typography color="textSecondary" mt={1} style={responsiveStyles.bodyText}>
-                        {project.description}
+                        {project.description || 'No description provided'}
                     </Typography>
                 </Box>
                 <Button
@@ -250,20 +265,24 @@ const ProjectDashboard = () => {
                     size={isMobile ? "small" : "medium"}
                 />
                 <Chip
-                    label={`Lead: ${project.project_lead}`}
+                    label={`Lead: ${project.project_lead || 'Not assigned'}`}
                     variant="outlined"
                     size={isMobile ? "small" : "medium"}
                 />
-                <Chip
-                    label={`Start: ${new Date(project.start_date).toLocaleDateString()}`}
-                    variant="outlined"
-                    size={isMobile ? "small" : "medium"}
-                />
-                <Chip
-                    label={`End: ${new Date(project.end_date).toLocaleDateString()}`}
-                    variant="outlined"
-                    size={isMobile ? "small" : "medium"}
-                />
+                {project.start_date && (
+                    <Chip
+                        label={`Start: ${new Date(project.start_date).toLocaleDateString()}`}
+                        variant="outlined"
+                        size={isMobile ? "small" : "medium"}
+                    />
+                )}
+                {project.end_date && (
+                    <Chip
+                        label={`End: ${new Date(project.end_date).toLocaleDateString()}`}
+                        variant="outlined"
+                        size={isMobile ? "small" : "medium"}
+                    />
+                )}
             </Box>
 
             <Grid container style={responsiveStyles.gridContainer}>

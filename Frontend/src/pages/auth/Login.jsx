@@ -9,19 +9,22 @@ import {
     Alert,
     CircularProgress,
     Link,
-    Container,
     Fade,
     InputAdornment,
     IconButton,
-    Card,
+    Checkbox,
+    FormControlLabel,
 } from '@mui/material';
 import {
     Login as LoginIcon,
     Visibility,
     VisibilityOff,
-    PersonOutline,
-    LockOutlined,
-    RocketLaunch
+    Email,
+    Lock,
+    Google,
+    Facebook,
+    Assignment,
+    Schedule,
 } from '@mui/icons-material';
 import { login, clearError } from '../../app/slices/authSlice';
 
@@ -31,13 +34,13 @@ const Login = () => {
         password: '',
     });
     const [showPassword, setShowPassword] = useState(false);
+    const [rememberMe, setRememberMe] = useState(false);
 
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const location = useLocation();
     const { loading, error, user } = useSelector((state) => state.auth);
 
-    // Redirect if already logged in
     useEffect(() => {
         if (user) {
             const from = location.state?.from?.pathname || '/dashboard';
@@ -56,12 +59,10 @@ const Login = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // Frontend Scope Document: Minimal validation
         if (!formData.username.trim() || !formData.password.trim()) {
-            dispatch(clearError()); // API will handle validation
+            dispatch(clearError());
         }
 
-        // API Contract: Exact request format
         const credentials = {
             username: formData.username,
             password: formData.password,
@@ -69,9 +70,7 @@ const Login = () => {
 
         const result = await dispatch(login(credentials));
 
-        // API Contract: On success, tokens received and stored
         if (!result.error) {
-            // Frontend Scope Document: Navigate to Dashboard
             navigate('/dashboard');
         }
     };
@@ -80,109 +79,39 @@ const Login = () => {
         <Box
             sx={{
                 minHeight: '100vh',
-                background: 'linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%)',
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                position: 'relative',
-                overflow: 'hidden',
-                '&::before': {
-                    content: '""',
-                    position: 'absolute',
-                    width: '400px',
-                    height: '400px',
-                    borderRadius: '50%',
-                    background: 'linear-gradient(45deg, #0052CC22, #0747A611)',
-                    top: '-100px',
-                    right: '-100px',
-                },
-                '&::after': {
-                    content: '""',
-                    position: 'absolute',
-                    width: '300px',
-                    height: '300px',
-                    borderRadius: '50%',
-                    background: 'linear-gradient(45deg, #0747A611, #0052CC22)',
-                    bottom: '-100px',
-                    left: '-100px',
-                },
+                flexDirection: { xs: 'column', md: 'row' },
             }}
         >
-            <Fade in={true} timeout={800}>
-                <Container maxWidth="sm">
-                    <Card
-                        elevation={0}
-                        sx={{
-                            p: { xs: 3, sm: 4, md: 5 },
-                            borderRadius: 3,
-                            backdropFilter: 'blur(10px)',
-                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                            border: '1px solid rgba(0, 82, 204, 0.1)',
-                            boxShadow: '0 20px 60px rgba(0, 82, 204, 0.15)',
-                            position: 'relative',
-                            zIndex: 1,
-                            overflow: 'hidden',
-                            '&::before': {
-                                content: '""',
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                height: '4px',
-                                background: 'linear-gradient(90deg, #0052CC, #0747A6)',
-                            },
-                        }}
-                    >
-                        {/* Logo/Header */}
-                        <Box textAlign="center" mb={4}>
-                            <Box
-                                sx={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    width: 60,
-                                    height: 60,
-                                    borderRadius: 3,
-                                    background: 'linear-gradient(135deg, #0052CC, #0747A6)',
-                                    mb: 2,
-                                    boxShadow: '0 8px 20px rgba(0, 82, 204, 0.3)',
-                                }}
-                            >
-                                <RocketLaunch
-                                    sx={{
-                                        fontSize: 32,
-                                        color: 'white',
-                                        transform: 'rotate(-15deg)'
-                                    }}
-                                />
-                            </Box>
-                            <Typography
-                                variant="h3"
-                                sx={{
-                                    color: '#0052CC',
-                                    fontWeight: 800,
-                                    mb: 1,
-                                    background: 'linear-gradient(135deg, #0052CC, #0747A6)',
-                                    backgroundClip: 'text',
-                                    WebkitBackgroundClip: 'text',
-                                    WebkitTextFillColor: 'transparent',
-                                }}
-                            >
-                                TaskFlow
-                            </Typography>
-                            <Typography
-                                variant="subtitle1"
-                                sx={{
-                                    color: '#6B778C',
-                                    fontWeight: 500,
-                                    letterSpacing: '0.5px',
-                                }}
-                            >
-                                Streamline Your Workflow
-                            </Typography>
-                        </Box>
+            {/* Left Side - Form */}
+            <Box
+                sx={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    backgroundColor: '#f8f9fa',
+                    p: { xs: 4, md: 8 },
+                    minHeight: { xs: '50vh', md: '100vh' },
+                }}
+            >
+                <Fade in={true} timeout={600}>
+                    <Box sx={{ width: '100%', maxWidth: '420px' }}>
+                        <Typography
+                            variant="h4"
+                            sx={{
+                                fontWeight: 700,
+                                mb: 4,
+                                color: '#2d3748',
+                            }}
+                        >
+                            Login to your account
+                        </Typography>
 
-                        {/* API Contract: Error display format */}
+
+
+                        {/* Error Alert */}
                         {error && (
                             <Fade in={!!error}>
                                 <Alert
@@ -190,11 +119,6 @@ const Login = () => {
                                     sx={{
                                         mb: 3,
                                         borderRadius: 2,
-                                        border: '1px solid #ffcdd2',
-                                        backgroundColor: '#ffebee',
-                                        '& .MuiAlert-icon': {
-                                            color: '#d32f2f',
-                                        },
                                     }}
                                     onClose={() => dispatch(clearError())}
                                 >
@@ -202,256 +126,438 @@ const Login = () => {
                                         ? error
                                         : error.details
                                             ? Object.values(error.details).join(', ')
-                                            : 'Invalid credentials'
-                                    }
+                                            : 'Invalid credentials'}
                                 </Alert>
                             </Fade>
                         )}
 
-                        {/* Login Form */}
-                        <form onSubmit={handleSubmit}>
-                            <TextField
-                                fullWidth
-                                label="Username or Email"
-                                name="username"
-                                value={formData.username}
-                                onChange={handleChange}
-                                margin="normal"
-                                required
-                                disabled={loading}
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <PersonOutline sx={{ color: '#0052CC' }} />
-                                        </InputAdornment>
-                                    ),
-                                }}
-                                sx={{
-                                    '& .MuiOutlinedInput-root': {
-                                        borderRadius: 2,
-                                        transition: 'all 0.3s ease',
-                                        '&:hover': {
+                        {/* Form */}
+                        <Box component="form" onSubmit={handleSubmit}>
+                            <Box mb={2.5}>
+                                <Typography
+                                    variant="body2"
+                                    sx={{
+                                        color: '#2d3748',
+                                        mb: 1,
+                                        fontWeight: 600,
+                                        fontSize: '0.875rem',
+                                    }}
+                                >
+                                    Email
+                                </Typography>
+                                <TextField
+                                    fullWidth
+                                    name="username"
+                                    value={formData.username}
+                                    onChange={handleChange}
+                                    required
+                                    disabled={loading}
+                                    placeholder="Enter your email"
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <Email sx={{ color: '#a0aec0', fontSize: 20 }} />
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                    sx={{
+                                        '& .MuiOutlinedInput-root': {
+                                            backgroundColor: 'white',
+                                            borderRadius: 2,
                                             '& fieldset': {
-                                                borderColor: '#0052CC',
+                                                borderColor: '#e2e8f0',
+                                            },
+                                            '&:hover fieldset': {
+                                                borderColor: '#cbd5e0',
+                                            },
+                                            '&.Mui-focused fieldset': {
+                                                borderColor: '#667eea',
+                                                borderWidth: 2,
                                             },
                                         },
-                                        '&.Mui-focused': {
-                                            '& fieldset': {
-                                                borderWidth: '2px',
-                                                borderColor: '#0052CC',
+                                        '& .MuiOutlinedInput-input': {
+                                            fontSize: '0.95rem',
+                                            '&::placeholder': {
+                                                color: '#a0aec0',
+                                                opacity: 1,
                                             },
                                         },
-                                    },
-                                    '& .MuiInputLabel-root.Mui-focused': {
-                                        color: '#0052CC',
-                                    },
-                                }}
-                            />
+                                    }}
+                                />
+                            </Box>
 
-                            <TextField
-                                fullWidth
-                                label="Password"
-                                name="password"
-                                type={showPassword ? 'text' : 'password'}
-                                value={formData.password}
-                                onChange={handleChange}
-                                margin="normal"
-                                required
-                                disabled={loading}
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <LockOutlined sx={{ color: '#0052CC' }} />
-                                        </InputAdornment>
-                                    ),
-                                    endAdornment: (
-                                        <InputAdornment position="end">
-                                            <IconButton
-                                                onClick={() => setShowPassword(!showPassword)}
-                                                edge="end"
-                                                size="small"
-                                                sx={{ color: '#6B778C' }}
-                                            >
-                                                {showPassword ? <VisibilityOff /> : <Visibility />}
-                                            </IconButton>
-                                        </InputAdornment>
-                                    ),
-                                }}
+                            <Box mb={2}>
+                                <Typography
+                                    variant="body2"
+                                    sx={{
+                                        color: '#2d3748',
+                                        mb: 1,
+                                        fontWeight: 600,
+                                        fontSize: '0.875rem',
+                                    }}
+                                >
+                                    Password
+                                </Typography>
+                                <TextField
+                                    fullWidth
+                                    name="password"
+                                    type={showPassword ? 'text' : 'password'}
+                                    value={formData.password}
+                                    onChange={handleChange}
+                                    required
+                                    disabled={loading}
+                                    placeholder="Enter your password"
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <Lock sx={{ color: '#a0aec0', fontSize: 20 }} />
+                                            </InputAdornment>
+                                        ),
+                                        endAdornment: (
+                                            <InputAdornment position="end">
+                                                <IconButton
+                                                    onClick={() => setShowPassword(!showPassword)}
+                                                    edge="end"
+                                                    sx={{ color: '#718096' }}
+                                                >
+                                                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                    sx={{
+                                        '& .MuiOutlinedInput-root': {
+                                            backgroundColor: 'white',
+                                            borderRadius: 2,
+                                            '& fieldset': {
+                                                borderColor: '#e2e8f0',
+                                            },
+                                            '&:hover fieldset': {
+                                                borderColor: '#cbd5e0',
+                                            },
+                                            '&.Mui-focused fieldset': {
+                                                borderColor: '#667eea',
+                                                borderWidth: 2,
+                                            },
+                                        },
+                                        '& .MuiOutlinedInput-input': {
+                                            fontSize: '0.95rem',
+                                            '&::placeholder': {
+                                                color: '#a0aec0',
+                                                opacity: 1,
+                                            },
+                                        },
+                                    }}
+                                />
+                            </Box>
+
+                            <Box
                                 sx={{
-                                    '& .MuiOutlinedInput-root': {
-                                        borderRadius: 2,
-                                        transition: 'all 0.3s ease',
-                                        '&:hover': {
-                                            '& fieldset': {
-                                                borderColor: '#0052CC',
-                                            },
-                                        },
-                                        '&.Mui-focused': {
-                                            '& fieldset': {
-                                                borderWidth: '2px',
-                                                borderColor: '#0052CC',
-                                            },
-                                        },
-                                    },
-                                    '& .MuiInputLabel-root.Mui-focused': {
-                                        color: '#0052CC',
-                                    },
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    mb: 4,
                                 }}
-                            />
+                            >
+                                <FormControlLabel
+                                    control={
+                                        <Checkbox
+                                            checked={rememberMe}
+                                            onChange={(e) => setRememberMe(e.target.checked)}
+                                            sx={{
+                                                color: '#cbd5e0',
+                                                '&.Mui-checked': {
+                                                    color: '#667eea',
+                                                },
+                                            }}
+                                        />
+                                    }
+                                    label={
+                                        <Typography
+                                            variant="body2"
+                                            sx={{ color: '#4a5568', fontSize: '0.875rem' }}
+                                        >
+                                            Remember me
+                                        </Typography>
+                                    }
+                                />
+                                <Link
+                                    href="/forgot-password"
+                                    sx={{
+                                        color: '#e53e3e',
+                                        textDecoration: 'none',
+                                        fontSize: '0.875rem',
+                                        fontWeight: 500,
+                                        '&:hover': {
+                                            textDecoration: 'underline',
+                                        },
+                                    }}
+                                >
+                                    Forgot password?
+                                </Link>
+                            </Box>
 
                             <Button
                                 type="submit"
                                 fullWidth
                                 variant="contained"
                                 size="large"
-                                startIcon={
-                                    loading ? (
-                                        <CircularProgress size={20} color="inherit" />
-                                    ) : (
-                                        <LoginIcon />
-                                    )
-                                }
+                                disabled={loading}
                                 sx={{
-                                    mt: 4,
-                                    mb: 3,
                                     py: 1.8,
                                     borderRadius: 2,
-                                    background: 'linear-gradient(135deg, #0052CC, #0747A6)',
-                                    boxShadow: '0 6px 20px rgba(0, 82, 204, 0.4)',
-                                    '&:hover': {
-                                        background: 'linear-gradient(135deg, #0747A6, #0052CC)',
-                                        boxShadow: '0 8px 25px rgba(0, 82, 204, 0.5)',
-                                        transform: 'translateY(-2px)',
-                                    },
-                                    '&:active': {
-                                        transform: 'translateY(0)',
-                                    },
+                                    backgroundColor: '#718096',
                                     textTransform: 'none',
-                                    fontWeight: 600,
                                     fontSize: '1rem',
-                                    letterSpacing: '0.5px',
-                                    transition: 'all 0.3s ease',
+                                    fontWeight: 600,
+                                    boxShadow: 'none',
+                                    '&:hover': {
+                                        backgroundColor: '#4a5568',
+                                        boxShadow: 'none',
+                                    },
                                 }}
-                                disabled={loading}
                             >
-                                {loading ? 'Logging in...' : 'Sign In to Dashboard'}
+                                {loading ? (
+                                    <CircularProgress size={24} color="inherit" />
+                                ) : (
+                                    'Login now'
+                                )}
                             </Button>
 
-                            <Box textAlign="center" mt={3}>
-                                <Link
-                                    href="/forgot-password"
-                                    variant="body2"
-                                    sx={{
-                                        color: '#0052CC',
-                                        textDecoration: 'none',
-                                        fontWeight: 500,
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: 0.5,
-                                        transition: 'all 0.2s ease',
-                                        '&:hover': {
-                                            color: '#0747A6',
-                                            textDecoration: 'underline',
-                                            gap: 1,
-                                        },
-                                    }}
-                                >
-                                    Forgot your password?
-                                </Link>
+                            <Box textAlign="center" mt={4}>
+                                <Typography variant="body2" sx={{ color: '#4a5568' }}>
+                                    Don't have an account?{' '}
+                                    <Link
+                                        href="/register"
+                                        sx={{
+                                            color: '#e53e3e',
+                                            textDecoration: 'none',
+                                            fontWeight: 600,
+                                            '&:hover': {
+                                                textDecoration: 'underline',
+                                            },
+                                        }}
+                                    >
+                                        Join free today
+                                    </Link>
+                                </Typography>
                             </Box>
+                        </Box>
+                    </Box>
+                </Fade>
+            </Box>
 
-                            {/* Demo credentials */}
+            {/* Right Side - Welcome Section */}
+            <Box
+                sx={{
+                    flex: 1,
+                    display: { xs: 'none', md: 'flex' },
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    background: 'linear-gradient(135deg, #c3dafe 0%, #a7f3d0 100%)',
+                    p: 8,
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        width: '300px',
+                        height: '300px',
+                        borderRadius: '50%',
+                        background: 'rgba(255, 255, 255, 0.2)',
+                        top: '-100px',
+                        right: '-100px',
+                    },
+                    '&::after': {
+                        content: '""',
+                        position: 'absolute',
+                        width: '200px',
+                        height: '200px',
+                        borderRadius: '50%',
+                        background: 'rgba(255, 255, 255, 0.15)',
+                        bottom: '50px',
+                        left: '-50px',
+                    },
+                }}
+            >
+                <Fade in={true} timeout={800}>
+                    <Box sx={{ position: 'relative', zIndex: 1, textAlign: 'center', maxWidth: '500px' }}>
+                        <Typography
+                            variant="h3"
+                            sx={{
+                                fontWeight: 700,
+                                mb: 3,
+                                color: '#2d3748',
+                            }}
+                        >
+                            WELCOME BACK!
+                        </Typography>
+                        <Typography
+                            variant="h5"
+                            sx={{
+                                fontWeight: 400,
+                                mb: 6,
+                                color: '#4a5568',
+                                lineHeight: 1.6,
+                            }}
+                        >
+                            You're just one step away from a high-quality task management experience.
+                        </Typography>
+
+                        {/* Task Management Icon Illustration */}
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                mt: 4,
+                            }}
+                        >
                             <Box
                                 sx={{
-                                    mt: 4,
-                                    pt: 3,
-                                    borderTop: '1px solid rgba(0, 82, 204, 0.1)',
+                                    position: 'relative',
+                                    width: '250px',
+                                    height: '250px',
                                 }}
                             >
-                                <Typography
-                                    variant="body2"
-                                    sx={{
-                                        color: '#6B778C',
-                                        fontWeight: 500,
-                                        mb: 1.5,
-                                        textAlign: 'center',
-                                    }}
-                                >
-                                    API Contract Test Credentials
-                                </Typography>
+                                {/* Main Task Board */}
                                 <Box
                                     sx={{
+                                        position: 'absolute',
+                                        width: '180px',
+                                        height: '220px',
+                                        background: '#2d3748',
+                                        borderRadius: 4,
+                                        left: '0',
+                                        top: '15px',
                                         display: 'flex',
-                                        flexDirection: { xs: 'column', sm: 'row' },
-                                        gap: 2,
-                                        justifyContent: 'center',
+                                        flexDirection: 'column',
                                         alignItems: 'center',
+                                        p: 3,
+                                        boxShadow: '0 15px 50px rgba(45, 55, 72, 0.3)',
                                     }}
                                 >
+                                    {/* Clipboard Top */}
                                     <Box
                                         sx={{
-                                            p: 1.5,
-                                            borderRadius: 2,
-                                            backgroundColor: 'rgba(0, 82, 204, 0.05)',
-                                            border: '1px solid rgba(0, 82, 204, 0.1)',
-                                            minWidth: 180,
+                                            position: 'absolute',
+                                            top: '-15px',
+                                            width: '80px',
+                                            height: '30px',
+                                            background: '#2d3748',
+                                            borderRadius: '8px 8px 0 0',
+                                            display: 'flex',
+                                            justifyContent: 'center',
+                                            alignItems: 'flex-start',
+                                            pt: 0.5,
                                         }}
                                     >
-                                        <Typography
-                                            variant="caption"
+                                        <Box
                                             sx={{
-                                                color: '#0052CC',
-                                                fontWeight: 600,
-                                                display: 'block',
+                                                width: '12px',
+                                                height: '12px',
+                                                borderRadius: '50%',
+                                                border: '3px solid white',
                                             }}
-                                        >
-                                            Username
-                                        </Typography>
-                                        <Typography
-                                            variant="body2"
-                                            sx={{
-                                                color: '#6B778C',
-                                                fontFamily: 'monospace',
-                                            }}
-                                        >
-                                            admin
-                                        </Typography>
+                                        />
                                     </Box>
-                                    <Box
-                                        sx={{
-                                            p: 1.5,
-                                            borderRadius: 2,
-                                            backgroundColor: 'rgba(0, 82, 204, 0.05)',
-                                            border: '1px solid rgba(0, 82, 204, 0.1)',
-                                            minWidth: 180,
-                                        }}
-                                    >
-                                        <Typography
-                                            variant="caption"
+
+                                    {/* Checkmark Items */}
+                                    {[0, 1, 2].map((item) => (
+                                        <Box
+                                            key={item}
                                             sx={{
-                                                color: '#0052CC',
-                                                fontWeight: 600,
-                                                display: 'block',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                width: '100%',
+                                                mb: 2.5,
+                                                mt: item === 0 ? 2 : 0,
                                             }}
                                         >
-                                            Password
-                                        </Typography>
-                                        <Typography
-                                            variant="body2"
-                                            sx={{
-                                                color: '#6B778C',
-                                                fontFamily: 'monospace',
-                                            }}
-                                        >
-                                            password123
-                                        </Typography>
-                                    </Box>
+                                            <Box
+                                                sx={{
+                                                    width: '28px',
+                                                    height: '28px',
+                                                    backgroundColor: '#48bb78',
+                                                    borderRadius: 1,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    mr: 1.5,
+                                                    fontWeight: 'bold',
+                                                    color: 'white',
+                                                    fontSize: '1.2rem',
+                                                }}
+                                            >
+                                                ✓
+                                            </Box>
+                                            <Box
+                                                sx={{
+                                                    flex: 1,
+                                                    height: '6px',
+                                                    backgroundColor: 'white',
+                                                    borderRadius: 1,
+                                                }}
+                                            />
+                                        </Box>
+                                    ))}
                                 </Box>
+
+                                {/* Clock Icon */}
+                                <Box
+                                    sx={{
+                                        position: 'absolute',
+                                        right: '0',
+                                        bottom: '0',
+                                        width: '100px',
+                                        height: '100px',
+                                        borderRadius: '50%',
+                                        background: '#2d3748',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        boxShadow: '0 10px 40px rgba(45, 55, 72, 0.3)',
+                                    }}
+                                >
+                                    <Schedule
+                                        sx={{
+                                            fontSize: 60,
+                                            color: 'white',
+                                        }}
+                                    />
+                                </Box>
+
+                                {/* Pencil */}
+                                <Box
+                                    sx={{
+                                        position: 'absolute',
+                                        right: '30px',
+                                        top: '0',
+                                        width: '60px',
+                                        height: '12px',
+                                        background: 'linear-gradient(90deg, #e2e8f0 50%, #cbd5e0 50%)',
+                                        borderRadius: '0 6px 6px 0',
+                                        transform: 'rotate(-45deg)',
+                                        '&::before': {
+                                            content: '""',
+                                            position: 'absolute',
+                                            right: '-10px',
+                                            top: '50%',
+                                            transform: 'translateY(-50%)',
+                                            width: 0,
+                                            height: 0,
+                                            borderLeft: '10px solid #cbd5e0',
+                                            borderTop: '6px solid transparent',
+                                            borderBottom: '6px solid transparent',
+                                        },
+                                    }}
+                                />
                             </Box>
-                        </form>
-                    </Card>
-                </Container>
-            </Fade>
+                        </Box>
+                    </Box>
+                </Fade>
+            </Box>
         </Box>
     );
 };

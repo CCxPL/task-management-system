@@ -28,7 +28,6 @@ const ThemedApp = () => {
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
     <Provider store={store}>
       <CustomThemeProvider>
         <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -36,5 +35,4 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         </LocalizationProvider>
       </CustomThemeProvider>
     </Provider>
-  </React.StrictMode>
 )

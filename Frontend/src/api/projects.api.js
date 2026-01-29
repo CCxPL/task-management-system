@@ -47,18 +47,29 @@ export const projectsAPI = {
   },
 
   // ✅ Update project
-  updateProject: async (projectId, projectData) => {
-    console.log('📝 Updating project:', projectId);
-    try {
-      const response = await axiosInstance.patch(
-        `/projects/${projectId}/`,
-        projectData
-      );
-      console.log('✅ Project updated:', response.data);
-      return response;
-    } catch (error) {
-      console.error('❌ Failed to update project:', error.response?.data);
-      throw error;
-    }
-  },
+updateProject: async (projectId, projectData) => {
+  console.log('📝 Updating project:', projectId);
+  try {
+    const response = await axiosInstance.patch(
+      `/projects/${projectId}/update/`,  // ✅ Add /update/
+      projectData
+    );
+    console.log('✅ Project updated:', response.data);
+    return response;
+  } catch (error) {
+    console.error('❌ Failed to update project:', error.response?.data);
+    throw error;
+  }
+},
+  deleteProject: async (projectId) => {
+  console.log('🗑️  Deleting project:', projectId);
+  try {
+    const response = await axiosInstance.delete(`/projects/${projectId}/delete/`);
+    console.log('✅ Project deleted:', response.data);
+    return response;
+  } catch (error) {
+    console.error('❌ Failed to delete project:', error.response?.data);
+    throw error;
+  }
+},
 };

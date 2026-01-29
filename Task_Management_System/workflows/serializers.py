@@ -1,22 +1,35 @@
 from rest_framework import serializers
 from django.utils.text import slugify
+from organizations.models import OrganizationUser
 from .models import Workflow, WorkflowStatus, WorkflowTransition
 
-# workflows/serializers.py
-
-from organizations.models import OrganizationUser
-from rest_framework import serializers
-from django.utils.text import slugify
-from .models import WorkflowStatus
-from rest_framework import serializers
-from organizations.models import OrganizationUser
-from .models import Workflow
 
 class WorkflowSerializer(serializers.ModelSerializer):
-
+    # ✅ Add read-only fields for frontend
+    statuses_count = serializers.SerializerMethodField()
+    transitions_count = serializers.SerializerMethodField()
+    organization_name = serializers.CharField(source='organization.name', read_only=True)
+    
     class Meta:
         model = Workflow
-        fields = ["id", "name"]   # ❗ organization removed from input
+        fields = [
+            "id", 
+            "name", 
+            "is_default", 
+            "is_active",
+            "organization_name",  # ✅ For display
+            "statuses_count",     # ✅ For dashboard
+            "transitions_count",  # ✅ For dashboard
+            "created_at",
+            "updated_at"
+        ]
+        read_only_fields = ["created_at", "updated_at"]
+    
+    def get_statuses_count(self, obj):
+        return obj.statuses.count()
+    
+    def get_transitions_count(self, obj):
+        return obj.transitions.count()
 
     def create(self, validated_data):
         request = self.context["request"]
@@ -35,23 +48,35 @@ class WorkflowSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
-
 class WorkflowStatusSerializer(serializers.ModelSerializer):
-
+    # ✅ Add helpful fields
+    issues_count = serializers.SerializerMethodField()
+    
     class Meta:
         model = WorkflowStatus
-        exclude = ('workflow',)
-        # fields = [
-        #     "id",
-        #     "name",
-        #     "order",
-        #     "is_start",
-        #     "is_terminal",
-        #     "color",
-        # ]
+        fields = [
+            "id",
+            "name",
+            "slug",
+            "order",
+            "is_start",
+            "is_terminal",
+            "color",
+            "issues_count",  # ✅ Show how many issues in this status
+            "created_at"
+        ]
+        read_only_fields = ["slug", "created_at"]  # ✅ slug is auto-generated
+    
+    def get_issues_count(self, obj):
+        return obj.issues.count() if hasattr(obj, 'issues') else 0
 
     def create(self, validated_data):
-        workflow = validated_data["workflow"]
+        # Get workflow from context (set in view)
+        workflow = self.context.get('workflow')
+        if not workflow:
+            raise serializers.ValidationError("Workflow context required")
+        
+        validated_data["workflow"] = workflow
         name = validated_data["name"]
 
         # 🔥 AUTO SLUG
@@ -71,7 +96,22 @@ class WorkflowStatusSerializer(serializers.ModelSerializer):
 
 
 class WorkflowTransitionSerializer(serializers.ModelSerializer):
+    # ✅ Add readable names
+    from_status_name = serializers.CharField(source='from_status.name', read_only=True)
+    from_status_slug = serializers.CharField(source='from_status.slug', read_only=True)
+    to_status_name = serializers.CharField(source='to_status.name', read_only=True)
+    to_status_slug = serializers.CharField(source='to_status.slug', read_only=True)
+    
     class Meta:
         model = WorkflowTransition
-        fields = ["id", "workflow", "from_status", "to_status", "created_at"]
-        read_only_fields = ["workflow", "created_at"]
+        fields = [
+            "id", 
+            "from_status", 
+            "to_status",
+            "from_status_name",   # ✅ For display
+            "from_status_slug",   # ✅ For frontend matching
+            "to_status_name",     # ✅ For display
+            "to_status_slug",     # ✅ For frontend matching
+            "created_at"
+        ]
+        read_only_fields = ["created_at"]

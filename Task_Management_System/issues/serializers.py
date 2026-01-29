@@ -138,3 +138,8 @@ class IssueCreateSerializer(serializers.Serializer):
     assignee = serializers.IntegerField(required=False, allow_null=True)
     due_date = serializers.DateField(required=False, allow_null=True)
     story_points = serializers.IntegerField(required=False, allow_null=True)
+    status = serializers.ChoiceField(
+        choices=["TO_DO", "IN_PROGRESS", "REVIEW", "DONE", "BACKLOG"],
+        required=False,
+        allow_null=True
+    )

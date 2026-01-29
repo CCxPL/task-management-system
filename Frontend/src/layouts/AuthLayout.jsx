@@ -1,6 +1,8 @@
 import { Container, Paper } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { Outlet } from 'react-router-dom';
+import { Box } from '@mui/material';
+
 
 const AuthContainer = styled(Container)(({ theme }) => ({
   minHeight: '100vh',
@@ -20,13 +22,18 @@ const AuthCard = styled(Paper)(({ theme }) => ({
 
 const AuthLayout = () => {
   return (
-    <AuthContainer maxWidth="xl">
-      <AuthCard elevation={3}>
-        {/* 👇 Router v6 renders child routes here */}
-        <Outlet />
-      </AuthCard>
-    </AuthContainer>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Outlet />
+    </Box>
   );
 };
+
 
 export default AuthLayout;

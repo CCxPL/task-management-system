@@ -46,7 +46,103 @@ def list_sprints_by_query(request):
     sprints = Sprint.objects.filter(project=project).order_by("-created_at")
     serializer = SprintSerializer(sprints, many=True)
     
+    print(f"✅ Found {sprints.count()} sprints for project {project_id}")
+    
     return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# -----------------------------
+# GET SINGLE SPRINT
+# GET /api/sprints/<id>/
+# -----------------------------
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_sprint(request, sprint_id):
+    """Get a single sprint by ID"""
+    user = request.user
+    org_user = user.org_memberships.filter(is_active=True).first()
+    
+    if not org_user:
+        return Response(
+            {"error": "Not part of organization"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    sprint = get_object_or_404(
+        Sprint,
+        id=sprint_id,
+        project__organization=org_user.organization
+    )
+    
+    serializer = SprintSerializer(sprint)
+    
+    print(f"✅ Retrieved sprint: {sprint.name} (ID: {sprint_id})")
+    
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# -----------------------------
+# UPDATE SPRINT
+# PATCH /api/sprints/<id>/
+# -----------------------------
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def update_sprint(request, sprint_id):
+    """Update sprint details"""
+    org_user = require_admin_or_manager(request.user)
+    
+    sprint = get_object_or_404(
+        Sprint,
+        id=sprint_id,
+        project__organization=org_user.organization
+    )
+    
+    # Update fields
+    if 'name' in request.data:
+        sprint.name = request.data['name']
+    if 'goal' in request.data:
+        sprint.goal = request.data['goal']
+    if 'start_date' in request.data:
+        sprint.start_date = request.data['start_date']
+    if 'end_date' in request.data:
+        sprint.end_date = request.data['end_date']
+    if 'status' in request.data:
+        sprint.status = request.data['status']
+    
+    sprint.save()
+    
+    serializer = SprintSerializer(sprint)
+    
+    print(f"✅ Updated sprint: {sprint.name} (ID: {sprint_id})")
+    
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# -----------------------------
+# DELETE SPRINT
+# DELETE /api/sprints/<id>/
+# -----------------------------
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def delete_sprint(request, sprint_id):
+    """Delete a sprint"""
+    org_user = require_admin_or_manager(request.user)
+    
+    sprint = get_object_or_404(
+        Sprint,
+        id=sprint_id,
+        project__organization=org_user.organization
+    )
+    
+    sprint_name = sprint.name
+    sprint.delete()
+    
+    print(f"🗑️  Deleted sprint: {sprint_name} (ID: {sprint_id})")
+    
+    return Response(
+        {"message": f"Sprint '{sprint_name}' deleted successfully"},
+        status=status.HTTP_200_OK
+    )
 
 
 # -----------------------------
@@ -116,6 +212,9 @@ def start_sprint(request, sprint_id):
 
     sprint.status = "ACTIVE"
     sprint.save(update_fields=["status"])
+    
+    print(f"▶️  Started sprint: {sprint.name} (ID: {sprint_id})")
+    
     return Response({"message": "Sprint started"})
 
 
@@ -130,4 +229,7 @@ def complete_sprint(request, sprint_id):
     sprint = get_object_or_404(Sprint, id=sprint_id)
     sprint.status = "COMPLETED"
     sprint.save(update_fields=["status"])
+    
+    print(f"✅ Completed sprint: {sprint.name} (ID: {sprint_id})")
+    
     return Response({"message": "Sprint completed"})

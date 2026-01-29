@@ -4,6 +4,7 @@
 
 ### File: `issues/views.py`
 
+from urllib import request
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -80,6 +81,8 @@ def issues_list_create(request):
     # =====================
     # GET → LIST ISSUES
     # =====================
+# In issues_list_create function, update GET section:
+
     if request.method == "GET":
         org_user = get_org_user(request.user)
         if not org_user:
@@ -91,13 +94,21 @@ def issues_list_create(request):
 
         project = get_object_or_404(Project, id=project_id, organization=org_user.organization)
 
-        # Check access
-        if org_user.role not in ["ADMIN", "MANAGER"]:
-            if not ProjectMember.objects.filter(project=project, user=request.user, is_active=True).exists():
-                raise PermissionDenied("Not project member")
-
-        # Query issues
-        queryset = Issue.objects.filter(project=project).select_related(
+        # ✅ ROLE-BASED FILTERING
+        if org_user.role in ["ADMIN", "MANAGER"]:
+            # Admin/Manager see all issues in project
+            queryset = Issue.objects.filter(project=project)
+            print(f"📊 Admin/Manager view: {queryset.count()} total issues")
+            
+        else:
+            # ✅ Member sees ONLY assigned issues
+            queryset = Issue.objects.filter(
+                project=project,
+                assignee=request.user
+            )
+            print(f"📊 Member view: {queryset.count()} assigned issues")
+        
+        queryset = queryset.select_related(
             "assignee", "workflow_status", "reporter"
         )
 
@@ -409,16 +420,6 @@ def kanban_board(request):
     if not org_user or project.organization != org_user.organization:
         raise PermissionDenied("Access denied")
 
-    # Project access
-    is_member = ProjectMember.objects.filter(
-        project=project,
-        user=user,
-        is_active=True
-    ).exists()
-
-    if not is_member and org_user.role not in ["ADMIN", "MANAGER"]:
-        raise PermissionDenied("Not a project member")
-
     # Fetch workflow
     workflow = Workflow.objects.filter(
         organization=project.organization,
@@ -434,12 +435,22 @@ def kanban_board(request):
     # Get all statuses in order
     statuses = workflow.statuses.all().order_by("order")
 
-    # Get all issues for project
-    issues = Issue.objects.filter(
-        project=project
-    ).select_related("workflow_status", "assignee", "reporter")
+    # ✅ ROLE-BASED FILTERING
+    if org_user.role in ["ADMIN", "MANAGER"]:
+        # Admin/Manager see all issues
+        issues = Issue.objects.filter(project=project)
+        print(f"📊 Kanban (Admin/Manager): {issues.count()} total issues")
+    else:
+        # ✅ Member sees only assigned issues
+        issues = Issue.objects.filter(
+            project=project,
+            assignee=user
+        )
+        print(f"📊 Kanban (Member): {issues.count()} assigned issues")
+    
+    issues = issues.select_related("workflow_status", "assignee", "reporter")
 
-    # ✅ SLUG TO FRONTEND MAPPING
+    # SLUG TO FRONTEND MAPPING
     SLUG_TO_FRONTEND = {
         'backlog': 'BACKLOG',
         'to-do': 'TO_DO',
@@ -448,15 +459,9 @@ def kanban_board(request):
         'done': 'DONE',
     }
     
-    # Debug logging
-    print(f"\n📊 Kanban Board Debug:")
-    print(f"   Workflow: {workflow.name} (ID: {workflow.id})")
-    print(f"   Statuses in workflow: {[s.slug for s in statuses]}")
-    
     kanban_data = {}
 
     for status_obj in statuses:
-        # Convert slug to frontend format
         frontend_key = SLUG_TO_FRONTEND.get(
             status_obj.slug, 
             status_obj.slug.upper().replace('-', '_')
@@ -471,7 +476,7 @@ def kanban_board(request):
                     "title": issue.title,
                     "priority": issue.priority,
                     "issue_type": issue.issue_type,
-                    "status": frontend_key,  # ✅ Frontend format
+                    "status": frontend_key,
                     "due_date": issue.due_date.isoformat() if issue.due_date else None,
                     "story_points": issue.story_points,
                     "assignee": {
@@ -482,9 +487,6 @@ def kanban_board(request):
                 })
         
         kanban_data[frontend_key] = status_issues
-        print(f"   {frontend_key}: {len(status_issues)} issues")
-
-    print(f"   Total issues: {sum(len(v) for v in kanban_data.values())}")
 
     return Response(kanban_data, status=status.HTTP_200_OK)
 

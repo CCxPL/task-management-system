@@ -1,42 +1,40 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useTheme } from '../../context/ThemeContext.jsx';
 import { useNavigate } from 'react-router-dom';
 import {
     Box,
     Button,
+    Grid,
     Card,
     CardContent,
-    Grid,
     Typography,
     Chip,
     IconButton,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    Paper,
     Dialog,
     DialogTitle,
     DialogContent,
     DialogActions,
     Avatar,
     Alert,
-    useTheme as useMuiTheme,
+    useTheme,
     useMediaQuery,
+    Stack,
+    Tooltip,
+    Paper,
 } from '@mui/material';
 import {
     Add as AddIcon,
     Visibility as ViewIcon,
     Delete as DeleteIcon,
-    Edit as EditIcon
+    Edit as EditIcon,
+    Folder as FolderIcon,
+    CalendarToday as CalendarIcon,
 } from '@mui/icons-material';
-import { fetchProjects } from '../../app/slices/projectSlice.js';
+import { fetchProjects } from '../../app/slices/projectSlice.js'; // ✅ Only this import
 import ProjectModal from '../../components/modals/ProjectModal.jsx';
 import Loader from '../../components/common/Loader.jsx';
 import { setCurrentProject } from '../../app/slices/projectContextSlice';
+import { projectsAPI } from '../../api/projects.api.js'; // ✅ Add this
 
 const ProjectList = () => {
     const dispatch = useDispatch();
@@ -44,452 +42,449 @@ const ProjectList = () => {
     const { list: projects, loading } = useSelector((state) => state.projects);
     const { user } = useSelector((state) => state.auth);
 
-    const { darkMode } = useTheme();
-
-    // Responsive hooks
-    const muiTheme = useMuiTheme();
-    const isMobile = useMediaQuery(muiTheme.breakpoints.down('sm'));
-    const isTablet = useMediaQuery(muiTheme.breakpoints.between('sm', 'md'));
+    const theme = useTheme();
+    const isDarkMode = theme.palette.mode === 'dark';
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
     const [openModal, setOpenModal] = useState(false);
     const [deleteDialog, setDeleteDialog] = useState(false);
     const [selectedProject, setSelectedProject] = useState(null);
+    const [editingProject, setEditingProject] = useState(null);
     const [successMessage, setSuccessMessage] = useState('');
+    const [errorMessage, setErrorMessage] = useState('');
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
+        console.log('📥 Fetching projects...');
         dispatch(fetchProjects());
     }, [dispatch]);
 
     const handleViewProject = (project) => {
-        dispatch(setCurrentProject(project));   // 🔒 LOCK PROJECT
+        console.log('🎯 Viewing project:', project.name, 'ID:', project.id);
+        dispatch(setCurrentProject(project));
         navigate(`/projects/${project.id}`);
     };
 
-    const handleEditProject = (project) => {
-        // Open edit modal (you'll need to update ProjectModal for edit mode)
-        console.log('Edit project:', project);
+    const handleEditProject = (project, e) => {
+        e.stopPropagation();
+        console.log('✏️ Editing project:', project.name);
+        setEditingProject(project);
+        setOpenModal(true);
     };
 
-    const handleDeleteClick = (project) => {
+    const handleDeleteClick = (project, e) => {
+        e.stopPropagation();
+        console.log('🗑️ Delete clicked for:', project.name);
         setSelectedProject(project);
         setDeleteDialog(true);
     };
 
-    const handleDeleteConfirm = () => {
-        // Mock delete - in real app, call API
-        console.log('Deleting project:', selectedProject);
-        setSuccessMessage(`Project "${selectedProject.name}" deleted successfully!`);
-        setDeleteDialog(false);
-        setSelectedProject(null);
-
-        // In real app: dispatch(deleteProject(selectedProject.id))
+    // ✅ Direct API call - No Redux needed
+    const handleDeleteConfirm = async () => {
+        try {
+            setDeleting(true);
+            console.log('🗑️ Deleting project:', selectedProject.id);
+            
+            // Direct API call
+            await projectsAPI.deleteProject(selectedProject.id);
+            
+            console.log('✅ Project deleted successfully');
+            setSuccessMessage(`Project "${selectedProject.name}" deleted successfully!`);
+            
+            // Refresh projects list
+            dispatch(fetchProjects());
+            
+            setDeleteDialog(false);
+            setSelectedProject(null);
+        } catch (error) {
+            console.error('❌ Failed to delete project:', error);
+            setErrorMessage(error.response?.data?.error || 'Failed to delete project');
+        } finally {
+            setDeleting(false);
+        }
     };
 
-    // Only Admin/Manager can create projects (as per API rules)
-    const canCreateProject = ['ORG_ADMIN', 'MANAGER'].includes(user?.role);
-    // Only Admin can delete projects
-    const canDeleteProject = user?.role === 'ORG_ADMIN';
+    const handleModalClose = () => {
+        setOpenModal(false);
+        setEditingProject(null);
+    };
 
-    // Responsive styles
-    const responsiveStyles = {
-        mainContainer: {
-            padding: isMobile ? '12px' : '24px',
-            width: '100%',
-            maxWidth: '100%',
-            overflowX: 'hidden',
-        },
-        headerContainer: {
-            display: 'flex',
-            flexDirection: isMobile ? 'column' : 'row',
-            justifyContent: 'space-between',
-            alignItems: isMobile ? 'flex-start' : 'center',
-            gap: isMobile ? '16px' : '0',
-            marginBottom: isMobile ? '16px' : '24px',
-        },
-        heading: {
-            fontSize: isMobile ? '1.5rem' : isTablet ? '1.75rem' : '2rem',
-            fontWeight: 'bold',
-        },
-        button: {
-            minHeight: '44px',
-            fontSize: isMobile ? '0.875rem' : '0.9375rem',
-            padding: isMobile ? '8px 16px' : '10px 20px',
-            width: isMobile ? '100%' : 'auto',
-        },
-        tableContainer: {
-            overflowX: 'auto',
-            border: darkMode ? '1px solid #3D444D' : '1px solid #C1C7D0',
-            backgroundColor: darkMode ? '#1D2125' : 'inherit',
-            maxWidth: '100%',
-        },
-        table: {
-            minWidth: isMobile ? '700px' : 'auto', // Minimum width for mobile scrolling
-        },
-        tableHead: {
-            backgroundColor: darkMode ? '#2C333A' : '#F4F5F7',
-            borderBottom: darkMode ? '2px solid #3D444D' : '2px solid #A5ADBA',
-        },
-        tableCell: {
-            fontWeight: 'bold',
-            color: darkMode ? '#B6C2CF' : '#172B4D',
-            borderRight: darkMode ? '1px solid #3D444D' : '1px solid #DFE1E6',
-            fontSize: isMobile ? '0.875rem' : '0.9375rem',
-            padding: isMobile ? '12px 8px' : '16px',
-        },
-        tableBodyCell: {
-            borderRight: darkMode ? '1px solid #3D444D' : '1px solid #E6E8EB',
-            padding: isMobile ? '12px 8px' : '16px',
-            fontSize: isMobile ? '0.875rem' : '1rem',
-        },
-        projectNameCell: {
-            maxWidth: isMobile ? '150px' : '300px',
-            minWidth: isMobile ? '120px' : '200px',
-        },
-        projectKeyCell: {
-            minWidth: isMobile ? '80px' : '100px',
-        },
-        statusCell: {
-            minWidth: isMobile ? '80px' : '100px',
-        },
-        leadCell: {
-            minWidth: isMobile ? '100px' : '150px',
-        },
-        actionsCell: {
-            minWidth: isMobile ? '120px' : '150px',
-        },
-        descriptionText: {
-            fontSize: isMobile ? '0.75rem' : '0.875rem',
-            maxWidth: isMobile ? '140px' : '280px',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-        },
-        chip: {
-            fontSize: isMobile ? '0.75rem' : '0.875rem',
-            height: isMobile ? '24px' : '32px',
-        },
-        avatar: {
-            width: isMobile ? '24px' : '28px',
-            height: isMobile ? '24px' : '28px',
-            fontSize: isMobile ? '0.75rem' : '0.875rem',
-        },
-        iconButton: {
-            width: isMobile ? '32px' : '40px',
-            height: isMobile ? '32px' : '40px',
-            padding: isMobile ? '6px' : '8px',
-        },
-        icon: {
-            fontSize: isMobile ? '18px' : '20px',
-        },
-        emptyState: {
-            padding: isMobile ? '40px 16px' : '64px',
-        },
-        dialog: {
-            '& .MuiDialog-paper': {
-                margin: isMobile ? '16px' : '32px',
-                width: isMobile ? 'calc(100% - 32px)' : '500px',
-                maxWidth: '100%',
-            }
-        },
-        dialogContent: {
-            padding: isMobile ? '16px' : '24px',
-        },
+    const handleModalSuccess = () => {
+        setSuccessMessage(editingProject ? 'Project updated successfully!' : 'Project created successfully!');
+        setOpenModal(false);
+        setEditingProject(null);
+        dispatch(fetchProjects());
+    };
+
+    const canCreateProject = ['ORG_ADMIN', 'ADMIN', 'MANAGER'].includes(user?.role);
+    const canDeleteProject = ['ORG_ADMIN', 'ADMIN'].includes(user?.role);
+
+    const getStatusColor = (status) => {
+        switch (status) {
+            case 'ACTIVE': return { bg: '#E3FCEF', color: '#064', border: '#ABF5D1' };
+            case 'ON_HOLD': return { bg: '#FFFAE6', color: '#FF8B00', border: '#FFE380' };
+            case 'COMPLETED': return { bg: '#E3F2FD', color: '#0052CC', border: '#90CAF9' };
+            default: return { bg: '#F4F5F7', color: '#6B778C', border: '#DFE1E6' };
+        }
     };
 
     if (loading) return <Loader />;
 
     return (
-        <Box style={responsiveStyles.mainContainer}>
+        <Box 
+            sx={{ 
+                p: 3, 
+                bgcolor: isDarkMode ? '#161A1D' : '#F4F5F7', 
+                minHeight: '100vh' 
+            }}
+        >
             {/* Success Alert */}
             {successMessage && (
                 <Alert
                     severity="success"
-                    sx={{ mb: 3 }}
+                    sx={{ mb: 3, borderRadius: '12px' }}
                     onClose={() => setSuccessMessage('')}
                 >
                     {successMessage}
                 </Alert>
             )}
 
-            <Box style={responsiveStyles.headerContainer}>
-                <Typography variant="h4" fontWeight="bold" style={responsiveStyles.heading}>
-                    Projects
-                </Typography>
-                {canCreateProject && (
-                    <Button
-                        variant="contained"
-                        startIcon={<AddIcon />}
-                        onClick={() => setOpenModal(true)}
-                        style={responsiveStyles.button}
-                    >
-                        Create Project
-                    </Button>
-                )}
-            </Box>
+            {/* Error Alert */}
+            {errorMessage && (
+                <Alert
+                    severity="error"
+                    sx={{ mb: 3, borderRadius: '12px' }}
+                    onClose={() => setErrorMessage('')}
+                >
+                    {errorMessage}
+                </Alert>
+            )}
 
-            {/* Table view as per document requirement */}
-            <TableContainer
-                component={Paper}
-                style={responsiveStyles.tableContainer}
-            >
-                <Table style={responsiveStyles.table}>
-                    <TableHead style={responsiveStyles.tableHead}>
-                        <TableRow>
-                            <TableCell style={{ ...responsiveStyles.tableCell, ...responsiveStyles.projectNameCell }}>
-                                Project Name
-                            </TableCell>
-                            <TableCell style={{ ...responsiveStyles.tableCell, ...responsiveStyles.projectKeyCell }}>
-                                Project Key
-                            </TableCell>
-                            <TableCell style={{ ...responsiveStyles.tableCell, ...responsiveStyles.statusCell }}>
-                                Status
-                            </TableCell>
-                            <TableCell style={{ ...responsiveStyles.tableCell, ...responsiveStyles.leadCell }}>
-                                Project Lead
-                            </TableCell>
-                            <TableCell style={{ ...responsiveStyles.tableCell, ...responsiveStyles.actionsCell }}>
-                                Actions
-                            </TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {projects.map((project, index) => (
-                            <TableRow
-                                key={project.id}
-                                hover
-                                sx={{
-                                    '&:hover': {
-                                        backgroundColor: darkMode ? '#2C333A' : '#F8FAFF',
-                                    },
-                                    backgroundColor: index % 2 === 0
-                                        ? (darkMode ? '#1D2125' : '#FFFFFF')
-                                        : (darkMode ? '#252A31' : '#FAFBFC'),
-                                    borderBottom: darkMode ? '1px solid #3D444D' : '1px solid #DFE1E6',
-                                    '&:last-child': {
-                                        borderBottom: darkMode ? '1px solid #3D444D' : '1px solid #C1C7D0',
-                                    }
-                                }}
-                            >
-                                {/* Project Name Cell */}
-                                <TableCell style={{
-                                    ...responsiveStyles.tableBodyCell,
-                                    ...responsiveStyles.projectNameCell,
-                                    borderLeft: '2px solid transparent',
-                                    '&:hover': {
-                                        borderLeft: '2px solid #0052CC',
-                                    }
-                                }}>
-                                    <Box>
-                                        <Typography fontWeight="medium" color={darkMode ? '#FFFFFF' : '#172B4D'}>
-                                            {project.name}
-                                        </Typography>
-                                        {project.description && (
-                                            <Typography
-                                                variant="body2"
-                                                color={darkMode ? '#8C9BAB' : '#6B778C'}
-                                                sx={{ mt: 0.5 }}
-                                                style={responsiveStyles.descriptionText}
-                                            >
-                                                {project.description.substring(0, isMobile ? 30 : 50)}...
-                                            </Typography>
-                                        )}
-                                    </Box>
-                                </TableCell>
+            {/* Header */}
+            <Box sx={{ mb: 4 }}>
+                <Box
+                    display="flex"
+                    justifyContent="space-between"
+                    alignItems={isMobile ? 'flex-start' : 'center'}
+                    flexDirection={isMobile ? 'column' : 'row'}
+                    gap={2}
+                    mb={2}
+                >
+                    <Box>
+                        <Typography 
+                            variant="h4" 
+                            fontWeight="700"
+                            sx={{
+                                background: 'linear-gradient(45deg, #3B82F6 30%, #8B5CF6 90%)',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                mb: 0.5,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                            }}
+                        >
+                            <FolderIcon /> Projects
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary">
+                            {projects.length} active projects
+                        </Typography>
+                    </Box>
 
-                                {/* Project Key Cell */}
-                                <TableCell style={{
-                                    ...responsiveStyles.tableBodyCell,
-                                    ...responsiveStyles.projectKeyCell
-                                }}>
-                                    <Chip
-                                        label={project.key}
-                                        sx={{
-                                            backgroundColor: darkMode ? '#252A31' : '#E3FCEF',
-                                            color: darkMode ? '#4BCE97' : '#064',
-                                            fontWeight: 600,
-                                            border: darkMode ? '1px solid #4BCE97' : '1.5px solid #ABF5D1',
-                                            borderRadius: '2px',
-                                        }}
-                                        style={responsiveStyles.chip}
-                                    />
-                                </TableCell>
-
-                                {/* Status Cell */}
-                                <TableCell style={{
-                                    ...responsiveStyles.tableBodyCell,
-                                    ...responsiveStyles.statusCell
-                                }}>
-                                    <Chip
-                                        label={project.status}
-                                        sx={{
-                                            backgroundColor: project.status === 'ACTIVE'
-                                                ? (darkMode ? '#1C3329' : '#E3FCEF')
-                                                : project.status === 'ON_HOLD'
-                                                    ? (darkMode ? '#38291E' : '#FFFAE6')
-                                                    : (darkMode ? '#2C333A' : '#F4F5F7'),
-                                            color: project.status === 'ACTIVE'
-                                                ? (darkMode ? '#4BCE97' : '#064')
-                                                : project.status === 'ON_HOLD'
-                                                    ? (darkMode ? '#FAA53D' : '#FF8B00')
-                                                    : (darkMode ? '#8C9BAB' : '#6B778C'),
-                                            fontWeight: 500,
-                                            border: project.status === 'ACTIVE'
-                                                ? (darkMode ? '1px solid #4BCE97' : '1.5px solid #ABF5D1')
-                                                : project.status === 'ON_HOLD'
-                                                    ? (darkMode ? '1px solid #FAA53D' : '1.5px solid #FFE380')
-                                                    : (darkMode ? '1px solid #3D444D' : '1.5px solid #DFE1E6'),
-                                            borderRadius: '2px',
-                                        }}
-                                        size="small"
-                                        style={responsiveStyles.chip}
-                                    />
-                                </TableCell>
-
-                                {/* Project Lead Cell */}
-                                <TableCell style={{
-                                    ...responsiveStyles.tableBodyCell,
-                                    ...responsiveStyles.leadCell
-                                }}>
-                                    <Box display="flex" alignItems="center" gap={1}>
-                                        <Avatar sx={{
-                                            width: responsiveStyles.avatar.width,
-                                            height: responsiveStyles.avatar.height,
-                                            bgcolor: darkMode ? '#579DFF' : '#0052CC',
-                                            fontSize: responsiveStyles.avatar.fontSize,
-                                            border: darkMode ? '1px solid #3D444D' : '1px solid #C1C7D0',
-                                            borderRadius: '2px',
-                                        }}>
-                                            {project.project_lead?.charAt(0).toUpperCase()}
-                                        </Avatar>
-                                        <Typography
-                                            color={darkMode ? '#FFFFFF' : '#172B4D'}
-                                            fontWeight={500}
-                                            fontSize={isMobile ? '0.875rem' : '1rem'}
-                                        >
-                                            {project.project_lead}
-                                        </Typography>
-                                    </Box>
-                                </TableCell>
-
-                                {/* Actions Cell */}
-                                <TableCell style={responsiveStyles.actionsCell}>
-                                    <Box display="flex" gap={1}>
-                                        <IconButton
-                                            color="primary"
-                                            size="small"
-                                            onClick={() => handleViewProject(project)}
-
-                                            title="View Project"
-                                            sx={{
-                                                backgroundColor: darkMode ? 'rgba(87, 157, 255, 0.1)' : 'rgba(0, 82, 204, 0.08)',
-                                                border: darkMode ? '1px solid #579DFF' : '1px solid rgba(0, 82, 204, 0.2)',
-                                                borderRadius: '2px',
-                                                '&:hover': {
-                                                    backgroundColor: darkMode ? 'rgba(87, 157, 255, 0.2)' : 'rgba(0, 82, 204, 0.12)',
-                                                }
-                                            }}
-                                            style={responsiveStyles.iconButton}
-                                        >
-                                            <ViewIcon fontSize="small" style={responsiveStyles.icon} />
-                                        </IconButton>
-
-                                        {canCreateProject && (
-                                            <IconButton
-                                                color="info"
-                                                size="small"
-                                                onClick={() => handleEditProject(project)}
-                                                title="Edit Project"
-                                                sx={{
-                                                    backgroundColor: darkMode ? 'rgba(0, 199, 229, 0.1)' : 'rgba(0, 184, 217, 0.08)',
-                                                    border: darkMode ? '1px solid #00C7E5' : '1px solid rgba(0, 184, 217, 0.2)',
-                                                    borderRadius: '2px',
-                                                    '&:hover': {
-                                                        backgroundColor: darkMode ? 'rgba(0, 199, 229, 0.2)' : 'rgba(0, 184, 217, 0.12)',
-                                                    }
-                                                }}
-                                                style={responsiveStyles.iconButton}
-                                            >
-                                                <EditIcon fontSize="small" style={responsiveStyles.icon} />
-                                            </IconButton>
-                                        )}
-
-                                        {canDeleteProject && (
-                                            <IconButton
-                                                color="error"
-                                                size="small"
-                                                onClick={() => handleDeleteClick(project)}
-                                                title="Delete Project"
-                                                sx={{
-                                                    backgroundColor: darkMode ? 'rgba(227, 72, 80, 0.1)' : 'rgba(222, 53, 11, 0.08)',
-                                                    border: darkMode ? '1px solid #E34850' : '1px solid rgba(222, 53, 11, 0.2)',
-                                                    borderRadius: '2px',
-                                                    '&:hover': {
-                                                        backgroundColor: darkMode ? 'rgba(227, 72, 80, 0.2)' : 'rgba(222, 53, 11, 0.12)',
-                                                    }
-                                                }}
-                                                style={responsiveStyles.iconButton}
-                                            >
-                                                <DeleteIcon fontSize="small" style={responsiveStyles.icon} />
-                                            </IconButton>
-                                        )}
-                                    </Box>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </TableContainer>
-
-            {projects.length === 0 && (
-                <Box textAlign="center" style={responsiveStyles.emptyState}>
-                    <Typography variant="h6" color="textSecondary">
-                        No projects found
-                    </Typography>
                     {canCreateProject && (
                         <Button
-                            variant="outlined"
+                            variant="contained"
                             startIcon={<AddIcon />}
-                            onClick={() => setOpenModal(true)}
-                            sx={{ mt: 2 }}
-                            style={responsiveStyles.button}
+                            onClick={() => {
+                                setEditingProject(null);
+                                setOpenModal(true);
+                            }}
+                            sx={{
+                                borderRadius: '12px',
+                                textTransform: 'none',
+                                px: 3,
+                                background: 'linear-gradient(45deg, #3B82F6 30%, #8B5CF6 90%)',
+                                '&:hover': {
+                                    background: 'linear-gradient(45deg, #2563EB 30%, #7C3AED 90%)',
+                                }
+                            }}
                         >
-                            Create your first project
+                            Create Project
                         </Button>
                     )}
                 </Box>
+            </Box>
+
+            {/* Projects Grid */}
+            {projects.length === 0 ? (
+                <Paper 
+                    sx={{ 
+                        p: 8, 
+                        textAlign: 'center', 
+                        borderRadius: '16px',
+                        bgcolor: isDarkMode ? '#1D2125' : '#FFFFFF',
+                    }}
+                >
+                    <FolderIcon sx={{ fontSize: 80, color: 'text.secondary', mb: 2 }} />
+                    <Typography variant="h5" fontWeight="600" gutterBottom>
+                        No Projects Yet
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary" paragraph>
+                        Create your first project to get started
+                    </Typography>
+                    {canCreateProject && (
+                        <Button
+                            variant="contained"
+                            startIcon={<AddIcon />}
+                            onClick={() => setOpenModal(true)}
+                            sx={{
+                                borderRadius: '12px',
+                                textTransform: 'none',
+                                background: 'linear-gradient(45deg, #3B82F6 30%, #8B5CF6 90%)',
+                            }}
+                        >
+                            Create First Project
+                        </Button>
+                    )}
+                </Paper>
+            ) : (
+                <Grid container spacing={3}>
+                    {projects.map((project) => {
+                        const statusStyle = getStatusColor(project.status);
+                        
+                        return (
+                            <Grid item xs={12} sm={6} md={4} key={project.id}>
+                                <Card
+                                    sx={{
+                                        height: '100%',
+                                        borderRadius: '16px',
+                                        bgcolor: isDarkMode ? '#1D2125' : '#FFFFFF',
+                                        border: `1px solid ${isDarkMode ? '#3D444D' : '#DFE1E6'}`,
+                                        transition: 'all 0.3s ease',
+                                        cursor: 'pointer',
+                                        '&:hover': {
+                                            transform: 'translateY(-4px)',
+                                            boxShadow: isDarkMode 
+                                                ? '0 8px 24px rgba(0,0,0,0.4)' 
+                                                : '0 8px 24px rgba(0,0,0,0.1)',
+                                            borderColor: theme.palette.primary.main,
+                                        }
+                                    }}
+                                    onClick={() => handleViewProject(project)}
+                                >
+                                    <CardContent sx={{ p: 3 }}>
+                                        {/* Header */}
+                                        <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+                                            <Box flex={1}>
+                                                <Typography 
+                                                    variant="h6" 
+                                                    fontWeight="600" 
+                                                    gutterBottom
+                                                    sx={{
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        display: '-webkit-box',
+                                                        WebkitLineClamp: 1,
+                                                        WebkitBoxOrient: 'vertical',
+                                                    }}
+                                                >
+                                                    {project.name}
+                                                </Typography>
+                                                <Chip
+                                                    label={project.key}
+                                                    size="small"
+                                                    sx={{
+                                                        bgcolor: isDarkMode ? '#22272B' : '#E3FCEF',
+                                                        color: isDarkMode ? '#4BCE97' : '#064',
+                                                        fontWeight: 600,
+                                                        fontSize: '0.75rem',
+                                                        height: 22,
+                                                    }}
+                                                />
+                                            </Box>
+                                            
+                                            <Chip
+                                                label={project.status}
+                                                size="small"
+                                                sx={{
+                                                    bgcolor: isDarkMode ? '#22272B' : statusStyle.bg,
+                                                    color: statusStyle.color,
+                                                    fontWeight: 500,
+                                                    fontSize: '0.7rem',
+                                                    height: 22,
+                                                    border: `1px solid ${statusStyle.border}`,
+                                                }}
+                                            />
+                                        </Box>
+
+                                        <Typography 
+                                            variant="body2" 
+                                            color="textSecondary" 
+                                            sx={{
+                                                mb: 3,
+                                                minHeight: 40,
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                display: '-webkit-box',
+                                                WebkitLineClamp: 2,
+                                                WebkitBoxOrient: 'vertical',
+                                            }}
+                                        >
+                                            {project.description || 'No description provided'}
+                                        </Typography>
+
+                                        <Box display="flex" alignItems="center" gap={1} mb={2}>
+                                            <Avatar 
+                                                sx={{ 
+                                                    width: 28, 
+                                                    height: 28, 
+                                                    bgcolor: 'primary.main',
+                                                    fontSize: '0.875rem',
+                                                }}
+                                            >
+                                                {project.project_lead?.charAt(0).toUpperCase()}
+                                            </Avatar>
+                                            <Box>
+                                                <Typography variant="caption" color="textSecondary" display="block">
+                                                    Project Lead
+                                                </Typography>
+                                                <Typography variant="body2" fontWeight="500">
+                                                    {project.project_lead}
+                                                </Typography>
+                                            </Box>
+                                        </Box>
+
+                                        <Stack spacing={0.5} sx={{ mb: 2 }}>
+                                            <Box display="flex" alignItems="center" gap={0.5}>
+                                                <CalendarIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                                                <Typography variant="caption" color="textSecondary">
+                                                    {new Date(project.start_date).toLocaleDateString('en-US', {
+                                                        month: 'short',
+                                                        day: 'numeric',
+                                                        year: 'numeric'
+                                                    })}
+                                                    {' → '}
+                                                    {new Date(project.end_date).toLocaleDateString('en-US', {
+                                                        month: 'short',
+                                                        day: 'numeric',
+                                                        year: 'numeric'
+                                                    })}
+                                                </Typography>
+                                            </Box>
+                                        </Stack>
+
+                                        <Box display="flex" gap={1} mt={2}>
+                                            <Tooltip title="View Details">
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleViewProject(project);
+                                                    }}
+                                                    sx={{
+                                                        bgcolor: 'primary.main',
+                                                        color: 'white',
+                                                        '&:hover': {
+                                                            bgcolor: 'primary.dark',
+                                                        },
+                                                        width: 32,
+                                                        height: 32,
+                                                    }}
+                                                >
+                                                    <ViewIcon fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+
+                                            {canCreateProject && (
+                                                <Tooltip title="Edit Project">
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={(e) => handleEditProject(project, e)}
+                                                        sx={{
+                                                            bgcolor: isDarkMode ? '#22272B' : '#F4F5F7',
+                                                            '&:hover': {
+                                                                bgcolor: 'info.main',
+                                                                color: 'white',
+                                                            },
+                                                            width: 32,
+                                                            height: 32,
+                                                        }}
+                                                    >
+                                                        <EditIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )}
+
+                                            {canDeleteProject && (
+                                                <Tooltip title="Delete Project">
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={(e) => handleDeleteClick(project, e)}
+                                                        sx={{
+                                                            bgcolor: isDarkMode ? '#22272B' : '#F4F5F7',
+                                                            '&:hover': {
+                                                                bgcolor: 'error.main',
+                                                                color: 'white',
+                                                            },
+                                                            width: 32,
+                                                            height: 32,
+                                                        }}
+                                                    >
+                                                        <DeleteIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )}
+                                        </Box>
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+                        );
+                    })}
+                </Grid>
             )}
 
-            {/* Create/Edit Project Modal */}
             <ProjectModal
                 open={openModal}
-                onClose={() => setOpenModal(false)}
-                project={null} // For create mode
+                onClose={handleModalClose}
+                project={editingProject}
+                onSuccess={handleModalSuccess}
             />
 
-            {/* Delete Confirmation Dialog */}
             <Dialog
                 open={deleteDialog}
-                onClose={() => setDeleteDialog(false)}
-                style={responsiveStyles.dialog}
+                onClose={() => !deleting && setDeleteDialog(false)}
+                PaperProps={{
+                    sx: {
+                        borderRadius: '16px',
+                        bgcolor: isDarkMode ? '#1D2125' : '#FFFFFF',
+                    }
+                }}
             >
                 <DialogTitle>Delete Project</DialogTitle>
-                <DialogContent style={responsiveStyles.dialogContent}>
+                <DialogContent>
                     <Typography>
                         Are you sure you want to delete project <strong>"{selectedProject?.name}"</strong>?
                     </Typography>
                     <Typography variant="body2" color="error" sx={{ mt: 2 }}>
-                        Warning: This action cannot be undone. All associated sprints and tasks will be deleted.
+                        ⚠️ Warning: This action cannot be undone. All associated sprints and tasks will be deleted.
                     </Typography>
                 </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setDeleteDialog(false)}>Cancel</Button>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button 
+                        onClick={() => setDeleteDialog(false)}
+                        disabled={deleting}
+                        sx={{ borderRadius: '8px', textTransform: 'none' }}
+                    >
+                        Cancel
+                    </Button>
                     <Button
                         onClick={handleDeleteConfirm}
+                        disabled={deleting}
                         color="error"
                         variant="contained"
-                        style={responsiveStyles.button}
+                        sx={{ borderRadius: '8px', textTransform: 'none' }}
                     >
-                        Delete Project
+                        {deleting ? 'Deleting...' : 'Delete Project'}
                     </Button>
                 </DialogActions>
             </Dialog>

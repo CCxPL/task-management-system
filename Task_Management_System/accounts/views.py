@@ -1,17 +1,13 @@
 from urllib import request
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.hashers import make_password  # ✅ ADD THIS
 from django.utils import timezone
 from django.core.exceptions import PermissionDenied, ValidationError
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework import status
-from organizations.models import OrganizationUser
-from .models import PasswordResetToken
-from .serializers import CreateOrgUserSerializer
-from rest_framework.permissions import AllowAny
-
 from organizations.models import OrganizationUser
 from .models import PasswordResetToken
 from .serializers import CreateOrgUserSerializer
@@ -29,11 +25,6 @@ def _require_org_admin_or_manager(user):
 
     return org_user
 
-
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from organizations.models import OrganizationUser
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -69,12 +60,17 @@ def current_user(request):
     })
 
 
+# ✅ UPDATED: Add password parameter
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_org_user(request):
+    """Create organization user with password"""
     org_user = _require_org_admin_or_manager(request.user)
     org = org_user.organization
 
+    # ✅ Get password from request
+    password = request.data.get("password")
+    
     serializer = CreateOrgUserSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
@@ -82,18 +78,53 @@ def create_org_user(request):
     role = serializer.validated_data["role"]
     username = serializer.validated_data.get("username") or email.split("@")[0]
 
-    user, created = User.objects.get_or_create(
-        email=email,
-        defaults={"username": username, "is_active": True},
-    )
+    # ✅ Check if user already exists
+    if User.objects.filter(email=email).exists():
+        return Response(
+            {"error": "User with this email already exists"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
+    # ✅ Validate password if provided
+    if password:
+        try:
+            # Create temporary user for validation
+            temp_user = User(username=username, email=email)
+            validate_password(password, temp_user)
+        except ValidationError as e:
+            return Response(
+                {"error": "Weak password", "details": e.messages},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    # ✅ Create user with password
+    if password:
+        user = User.objects.create(
+            email=email,
+            username=username,
+            password=make_password(password),  # ✅ Hash password
+            is_active=True
+        )
+        print(f"✅ Created user with password: {email}")
+    else:
+        # Create user without password (will use token setup)
+        user = User.objects.create(
+            email=email,
+            username=username,
+            is_active=True
+        )
+        print(f"✅ Created user without password: {email}")
+
+    # Check if user already in another org
     existing_map = OrganizationUser.objects.filter(user=user).first()
     if existing_map and existing_map.organization_id != org.id:
+        user.delete()  # Rollback user creation
         return Response(
             {"error": "User already belongs to another organization."},
             status=status.HTTP_400_BAD_REQUEST
         )
 
+    # Create org membership
     org_user_obj, _ = OrganizationUser.objects.get_or_create(
         user=user,
         organization=org,
@@ -104,21 +135,39 @@ def create_org_user(request):
         org_user_obj.role = role
         org_user_obj.save(update_fields=["role"])
 
-    token_obj = PasswordResetToken.generate(
-        user=user, purpose="SET_PASSWORD", minutes=60
-    )
-
-    return Response(
-        {
-            "user_id": user.id,
-            "email": user.email,
-            "organization": org.id,
-            "role": org_user_obj.role,
-            "set_password_token": token_obj.token,
-            "expires_at": token_obj.expires_at,
-        },
-        status=status.HTTP_201_CREATED
-    )
+    # ✅ Generate token only if no password provided
+    if not password:
+        token_obj = PasswordResetToken.generate(
+            user=user, purpose="SET_PASSWORD", minutes=60
+        )
+        
+        return Response(
+            {
+                "user_id": user.id,
+                "email": user.email,
+                "organization": org.id,
+                "role": org_user_obj.role,
+                "set_password_token": token_obj.token,
+                "expires_at": token_obj.expires_at,
+            },
+            status=status.HTTP_201_CREATED
+        )
+    else:
+        # ✅ Return credentials if password was set
+        return Response(
+            {
+                "user_id": user.id,
+                "email": user.email,
+                "username": user.username,
+                "organization": org.id,
+                "role": org_user_obj.role,
+                "credentials": {
+                    "email": email,
+                    "password": password  # Return for admin to share
+                }
+            },
+            status=status.HTTP_201_CREATED
+        )
 
 
 @api_view(["POST"])
@@ -176,7 +225,6 @@ def request_password_reset(request):
         status=200
     )
 
-# accounts/views.py
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -212,12 +260,14 @@ def list_organization_members(request):
             "email": member.user.email,
             "role": member.role,
             "is_active": member.is_active,
-            # "created_at": member.created_at,
         }
         for member in members
     ]
     
+    print(f"✅ Found {len(data)} members in organization: {org_user.organization.name}")
+    
     return Response(data, status=status.HTTP_200_OK)
+
 
 @api_view(["POST"])
 @permission_classes([AllowAny]) 
@@ -247,3 +297,129 @@ def reset_password(request):
     token_obj.save(update_fields=["used"])
 
     return Response({"message": "Password reset successfully"}, status=200)
+
+
+# ✅ UPDATE TEAM MEMBER
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def update_org_user(request, user_id):
+    """
+    Update organization user details
+    PATCH /api/accounts/team/<user_id>/
+    """
+    org_user = _require_org_admin_or_manager(request.user)
+    
+    # Get target organization user
+    target_org_user = OrganizationUser.objects.filter(
+        id=user_id,
+        organization=org_user.organization,
+        is_active=True
+    ).select_related('user').first()
+    
+    if not target_org_user:
+        return Response(
+            {"error": "User not found in your organization"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    # Update username
+    if "username" in request.data:
+        username = request.data["username"].strip()
+        if username:
+            # Check if username is taken by another user
+            if User.objects.filter(username=username).exclude(id=target_org_user.user.id).exists():
+                return Response(
+                    {"error": "Username already taken"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            target_org_user.user.username = username
+            target_org_user.user.save(update_fields=["username"])
+            print(f"✅ Updated username: {username}")
+    
+    # Update role
+    if "role" in request.data:
+        role = request.data["role"]
+        if role in ["ADMIN", "MANAGER", "MEMBER", "STUDENT", "TEACHER"]:
+            target_org_user.role = role
+            target_org_user.save(update_fields=["role"])
+            print(f"✅ Updated role: {role}")
+        else:
+            return Response(
+                {"error": "Invalid role"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    
+    # Update password (optional)
+    if "password" in request.data and request.data["password"]:
+        password = request.data["password"]
+        try:
+            validate_password(password, target_org_user.user)
+            target_org_user.user.set_password(password)
+            target_org_user.user.save(update_fields=["password"])
+            print(f"✅ Updated password for: {target_org_user.user.username}")
+        except ValidationError as e:
+            return Response(
+                {"error": "Weak password", "details": e.messages},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    
+    print(f"✅ User updated: {target_org_user.user.username}")
+    
+    return Response({
+        "id": target_org_user.id,
+        "user_id": target_org_user.user.id,
+        "name": target_org_user.user.username,
+        "username": target_org_user.user.username,
+        "email": target_org_user.user.email,
+        "role": target_org_user.role,
+        "is_active": target_org_user.is_active,
+    }, status=status.HTTP_200_OK)
+
+
+# ✅ DELETE TEAM MEMBER (Soft Delete)
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def delete_org_user(request, user_id):
+    """
+    Soft delete organization user
+    DELETE /api/accounts/team/<user_id>/delete/
+    """
+    org_user = _require_org_admin_or_manager(request.user)
+    
+    # Only ADMIN can delete (not MANAGER)
+    if org_user.role not in ["ADMIN", "ORG_ADMIN"]:
+        return Response(
+            {"error": "Only Admin can delete members"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    # Get target organization user
+    target_org_user = OrganizationUser.objects.filter(
+        id=user_id,
+        organization=org_user.organization,
+        is_active=True
+    ).select_related('user').first()
+    
+    if not target_org_user:
+        return Response(
+            {"error": "User not found in your organization"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    # Prevent self-deletion
+    if target_org_user.user.id == request.user.id:
+        return Response(
+            {"error": "Cannot delete yourself"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Soft delete
+    target_org_user.is_active = False
+    target_org_user.save(update_fields=['is_active'])
+    
+    print(f"🗑️  User soft-deleted: {target_org_user.user.username}")
+    
+    return Response(
+        {"message": f"User '{target_org_user.user.username}' deleted successfully"},
+        status=status.HTTP_200_OK
+    )

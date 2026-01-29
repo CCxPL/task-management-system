@@ -1,15 +1,19 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 
+// Layouts
 import AuthLayout from '../layouts/AuthLayout';
 import MainLayout from '../layouts/MainLayout';
 
+// Auth Pages
 import Login from '../pages/auth/Login';
 import ForgotPassword from '../pages/auth/ForgotPassword';
 
+// Dashboard
 import Dashboard from '../pages/dashboard/Dashboard';
 import SuperAdminDashboard from '../pages/superadmin/SuperAdminDashboard';
 
+// Pages
 import ProjectList from '../pages/projects/ProjectList';
 import ProjectDashboard from '../pages/projects/ProjectDashboard';
 import SprintList from '../pages/sprints/SprintList';
@@ -18,11 +22,14 @@ import KanbanBoard from '../pages/kanban/KanbanBoard';
 import IssueDetail from '../pages/issues/IssueDetail';
 import Reports from '../pages/reports/Reports';
 import Profile from '../pages/profile/Profile';
-
 import TeamManagement from '../pages/team/TeamManagement';
+import WorkflowManagement from '../pages/workflow/WorkflowManagement'; // ✅ Import
+
+// Super Admin
 import ManageOrganizations from '../pages/superadmin/ManageOrganizations';
 import CreateAdmin from '../pages/superadmin/CreateAdmin';
 
+// Components
 import ProtectedRoute from '../components/common/ProtectedRoute';
 
 const AppRoutes = () => {
@@ -30,7 +37,6 @@ const AppRoutes = () => {
 
   return (
     <Routes>
-
       {/* ================= PUBLIC ROUTES ================= */}
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<Login />} />
@@ -45,8 +51,10 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       >
+        {/* Default Redirect */}
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
+        {/* Dashboard - Role-based */}
         <Route
           path="/dashboard"
           element={
@@ -56,7 +64,7 @@ const AppRoutes = () => {
           }
         />
 
-        {/* SUPER ADMIN */}
+        {/* ================= SUPER ADMIN ROUTES ================= */}
         <Route
           path="/super-admin/create-admin"
           element={
@@ -74,19 +82,20 @@ const AppRoutes = () => {
           }
         />
 
-        {/* ORG ADMIN / MANAGER */}
+        {/* ================= ADMIN/MANAGER ROUTES ================= */}
         <Route
           path="/team"
           element={
-            <ProtectedRoute allowedRoles={['ORG_ADMIN']}>
+            <ProtectedRoute allowedRoles={['ORG_ADMIN', 'ADMIN']}>
               <TeamManagement />
             </ProtectedRoute>
           }
         />
+        
         <Route
           path="/projects"
           element={
-            <ProtectedRoute allowedRoles={['ORG_ADMIN', 'MANAGER']}>
+            <ProtectedRoute allowedRoles={['ORG_ADMIN', 'ADMIN', 'MANAGER']}>
               <ProjectList />
             </ProtectedRoute>
           }
@@ -96,20 +105,32 @@ const AppRoutes = () => {
         <Route
           path="/sprints"
           element={
-            <ProtectedRoute allowedRoles={['ORG_ADMIN', 'MANAGER']}>
+            <ProtectedRoute allowedRoles={['ORG_ADMIN', 'ADMIN', 'MANAGER']}>
               <SprintList />
             </ProtectedRoute>
           }
         />
         <Route path="/sprints/:id" element={<SprintBoard />} />
 
+        {/* ✅ WORKFLOW ROUTE - MOVED INSIDE PROTECTED ROUTES */}
+        <Route
+          path="/workflow"
+          element={
+            <ProtectedRoute allowedRoles={['ORG_ADMIN', 'ADMIN', 'MANAGER']}>
+              <WorkflowManagement />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ================= COMMON ROUTES ================= */}
         <Route path="/kanban" element={<KanbanBoard />} />
+        <Route path="/board" element={<KanbanBoard />} />
         <Route path="/issues/:id" element={<IssueDetail />} />
 
         <Route
           path="/reports"
           element={
-            <ProtectedRoute allowedRoles={['ORG_ADMIN', 'MANAGER']}>
+            <ProtectedRoute allowedRoles={['ORG_ADMIN', 'ADMIN', 'MANAGER']}>
               <Reports />
             </ProtectedRoute>
           }
@@ -119,7 +140,7 @@ const AppRoutes = () => {
       </Route>
 
       {/* ================= FALLBACK ================= */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 };

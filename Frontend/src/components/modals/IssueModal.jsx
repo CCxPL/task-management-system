@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import {
     Dialog,
     DialogTitle,
@@ -7,93 +7,110 @@ import {
     DialogActions,
     TextField,
     Button,
+    Typography,
     MenuItem,
     Grid,
-    FormControl,
-    InputLabel,
-    Select,
-    Chip,
+    Alert,
+    useTheme,
+    CircularProgress,
     Box,
-    Autocomplete,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { issuesAPI } from '../../api/issues.api';
-import { fetchIssues } from '../../app/slices/issueSlice';
+import { createIssue, updateIssue } from '../../app/slices/issueSlice';
+import { teamAPI } from '../../api/team.api';
+import { sprintsAPI } from '../../api/sprints.api';
 
-// Mock data - in real app would come from API
-const mockUsers = [
-    { id: 1, name: 'Admin User', role: 'ADMIN' },
-    { id: 2, name: 'Manager User', role: 'MANAGER' },
-    { id: 3, name: 'Developer One', role: 'MEMBER' },
-    { id: 4, name: 'Developer Two', role: 'MEMBER' },
-];
-
-const mockSprints = [
-    { id: 1, name: 'Sprint 1', status: 'ACTIVE' },
-    { id: 2, name: 'Sprint 2', status: 'PLANNED' },
-];
-
-const IssueModal = ({ open, onClose, projectId, issueId, onSuccess }) => {
+const IssueModal = ({ open, onClose, issue, onSuccess }) => {
     const dispatch = useDispatch();
-    const { user } = useSelector((state) => state.auth);
+    const theme = useTheme();
+    const isDarkMode = theme.palette.mode === 'dark';
+    
+    const { currentProject } = useSelector((state) => state.projectContext);
+    const isEditMode = !!issue;
+
+    // ✅ State for team members and sprints
+    const [teamMembers, setTeamMembers] = useState([]);
+    const [sprints, setSprints] = useState([]);
+    const [loadingData, setLoadingData] = useState(true);
     
     const [formData, setFormData] = useState({
-        project: projectId,
-        sprint: '',
         title: '',
         description: '',
         issue_type: 'TASK',
         priority: 'MEDIUM',
-        assignee: '',
-        due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        status: 'TO_DO',
+        assignee: '',  // ✅ User ID
+        sprint: '',    // ✅ Sprint ID
         story_points: '',
+        due_date: null,
     });
     const [loading, setLoading] = useState(false);
-    const [isEditMode, setIsEditMode] = useState(false);
+    const [error, setError] = useState('');
 
+    // ✅ Fetch team members and sprints when modal opens
     useEffect(() => {
-        if (issueId) {
-            setIsEditMode(true);
-            fetchIssueData();
-        } else {
-            setIsEditMode(false);
-            resetForm();
+        if (open && currentProject?.id) {
+            fetchModalData();
         }
-    }, [issueId]);
+    }, [open, currentProject?.id]);
 
-    const fetchIssueData = async () => {
-        try {
-            const issue = await issuesAPI.getIssueById(issueId);
+    // ✅ Pre-fill form when editing
+    useEffect(() => {
+        if (issue && open) {
+            console.log('✏️ Edit mode - Loading issue:', issue);
             setFormData({
-                project: issue.project,
-                sprint: issue.sprint || '',
-                title: issue.title,
+                title: issue.title || '',
                 description: issue.description || '',
-                issue_type: issue.issue_type,
-                priority: issue.priority,
-                assignee: issue.assignee || '',
-                due_date: issue.due_date ? new Date(issue.due_date) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                issue_type: issue.issue_type || 'TASK',
+                priority: issue.priority || 'MEDIUM',
+                status: issue.status || 'TO_DO',
+                assignee: issue.assignee?.id || issue.assignee || '',
+                sprint: issue.sprint?.id || issue.sprint || '',
                 story_points: issue.story_points || '',
+                due_date: issue.due_date ? new Date(issue.due_date) : null,
             });
-        } catch (error) {
-            console.error('❌ Failed to fetch issue:', error);
+        } else {
+            // Reset form for new issue
+            setFormData({
+                title: '',
+                description: '',
+                issue_type: 'TASK',
+                priority: 'MEDIUM',
+                status: 'TO_DO',
+                assignee: '',
+                sprint: '',
+                story_points: '',
+                due_date: null,
+            });
         }
-    };
+        setError('');
+    }, [issue, open]);
 
-    const resetForm = () => {
-        setFormData({
-            project: projectId,
-            sprint: '',
-            title: '',
-            description: '',
-            issue_type: 'TASK',
-            priority: 'MEDIUM',
-            assignee: '',
-            due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-            story_points: '',
-        });
+    // ✅ Fetch team members and sprints
+    const fetchModalData = async () => {
+        try {
+            setLoadingData(true);
+            console.log('📥 Fetching team members and sprints...');
+
+            // Fetch team members
+            const membersData = await teamAPI.getTeamMembers();
+            console.log('✅ Team members:', membersData);
+            setTeamMembers(Array.isArray(membersData) ? membersData : []);
+
+            // Fetch sprints
+            const sprintsData = await sprintsAPI.getSprintsByProject(currentProject.id);
+            console.log('✅ Sprints:', sprintsData);
+            setSprints(Array.isArray(sprintsData) ? sprintsData : []);
+
+        } catch (error) {
+            console.error('❌ Failed to fetch modal data:', error);
+            setTeamMembers([]);
+            setSprints([]);
+        } finally {
+            setLoadingData(false);
+        }
     };
 
     const handleChange = (e) => {
@@ -110,52 +127,169 @@ const IssueModal = ({ open, onClose, projectId, issueId, onSuccess }) => {
         });
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
+const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
 
-        try {
-            const payload = {
-                ...formData,
-                due_date: formData.due_date.toISOString().split('T')[0],
-                story_points: formData.story_points ? parseInt(formData.story_points) : null,
-            };
-
-            if (isEditMode) {
-                console.log('📝 Updating issue:', issueId);
-                await issuesAPI.updateIssue(issueId, payload);
-                console.log('✅ Issue updated');
-            } else {
-                console.log('📝 Creating new issue:', payload);
-                const result = await issuesAPI.createIssue(payload);
-                console.log('✅ Issue created:', result.data);
-            }
-
-            // ✅ CRITICAL: Refresh kanban board
-            console.log('🔄 Refreshing kanban board...');
-            await dispatch(fetchIssues(projectId));
-            console.log('✅ Kanban board refreshed');
-
-            onClose();
-            resetForm();
-            if (onSuccess) onSuccess();
-        } catch (error) {
-            console.error('❌ Failed to save issue:', error);
-            console.error('❌ Error details:', error.response?.data);
-        } finally {
+    try {
+        // ✅ Validate required fields
+        if (!formData.title?.trim()) {
+            setError('Title is required');
             setLoading(false);
+            return;
         }
+
+        if (!currentProject?.id) {
+            setError('No project selected');
+            setLoading(false);
+            return;
+        }
+
+        const issueData = {
+            title: formData.title.trim(),
+            description: formData.description?.trim() || '',
+            project: parseInt(currentProject.id),
+            issue_type: formData.issue_type || 'TASK',
+            priority: formData.priority || 'MEDIUM',
+            // ❌ REMOVE status - backend doesn't accept it on create
+            // status: formData.status || 'TO_DO',
+            
+            // ✅ Convert to integers or null
+            assignee: formData.assignee ? parseInt(formData.assignee) : null,
+            sprint: formData.sprint ? parseInt(formData.sprint) : null,
+            story_points: formData.story_points ? parseInt(formData.story_points) : null,
+            due_date: formData.due_date 
+                ? formData.due_date.toISOString().split('T')[0] 
+                : null,
+        };
+
+        console.log('📤 Submitting issue:', issueData);
+
+        if (isEditMode) {
+            // ✅ For update, include status
+            await dispatch(updateIssue({ 
+                issueId: issue.id, 
+                issueData: {
+                    ...issueData,
+                    status: formData.status, // ✅ Include status for update
+                }
+            })).unwrap();
+            console.log('✅ Issue updated');
+        } else {
+            // ✅ For create, don't include status
+            await dispatch(createIssue(issueData)).unwrap();
+            console.log('✅ Issue created');
+        }
+
+        // Reset form
+        setFormData({
+            title: '',
+            description: '',
+            issue_type: 'TASK',
+            priority: 'MEDIUM',
+            status: 'TO_DO',
+            assignee: '',
+            sprint: '',
+            story_points: '',
+            due_date: null,
+        });
+
+        if (onSuccess) {
+            onSuccess();
+        }
+
+        onClose();
+    } catch (err) {
+        console.error('❌ Failed to save issue:', err);
+        
+        // ✅ Extract detailed error message
+        let errorMessage = 'Failed to save issue';
+        
+        if (err?.response?.data) {
+            const errorData = err.response.data;
+            
+            // Check for field-specific errors
+            if (typeof errorData === 'object') {
+                const errors = [];
+                Object.keys(errorData).forEach(key => {
+                    if (Array.isArray(errorData[key])) {
+                        errors.push(`${key}: ${errorData[key].join(', ')}`);
+                    } else {
+                        errors.push(`${key}: ${errorData[key]}`);
+                    }
+                });
+                errorMessage = errors.join(' | ');
+            } else if (errorData.error) {
+                errorMessage = errorData.error;
+            } else if (errorData.detail) {
+                errorMessage = errorData.detail;
+            } else if (typeof errorData === 'string') {
+                errorMessage = errorData;
+            }
+        } else if (err?.message) {
+            errorMessage = err.message;
+        }
+        
+        console.error('Error message:', errorMessage);
+        setError(errorMessage);
+    } finally {
+        setLoading(false);
+    }
+};
+
+    const handleClose = () => {
+        setFormData({
+            title: '',
+            description: '',
+            issue_type: 'TASK',
+            priority: 'MEDIUM',
+            status: 'TO_DO',
+            assignee: '',
+            sprint: '',
+            story_points: '',
+            due_date: null,
+        });
+        setError('');
+        onClose();
     };
 
     return (
         <LocalizationProvider dateAdapter={AdapterDateFns}>
-            <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+            <Dialog 
+                open={open} 
+                onClose={handleClose} 
+                maxWidth="md" 
+                fullWidth
+                PaperProps={{
+                    sx: {
+                        borderRadius: '16px',
+                        bgcolor: isDarkMode ? '#1D2125' : '#FFFFFF',
+                    }
+                }}
+            >
                 <DialogTitle>
-                    {isEditMode ? 'Edit Issue' : 'Create New Issue'}
+                    {isEditMode ? `Edit Issue: ${issue?.issue_key}` : 'Create New Issue'}
                 </DialogTitle>
+                
                 <form onSubmit={handleSubmit}>
                     <DialogContent>
+                        {error && (
+                            <Alert severity="error" sx={{ mb: 2, borderRadius: '8px' }}>
+                                {error}
+                            </Alert>
+                        )}
+
+                        {/* ✅ Loading state for dropdowns */}
+                        {loadingData && (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                                <CircularProgress size={24} />
+                                <Typography sx={{ ml: 2 }}>Loading team members and sprints...</Typography>
+                            </Box>
+                        )}
+
                         <Grid container spacing={2}>
+                            {/* Title */}
                             <Grid item xs={12}>
                                 <TextField
                                     fullWidth
@@ -165,10 +299,10 @@ const IssueModal = ({ open, onClose, projectId, issueId, onSuccess }) => {
                                     onChange={handleChange}
                                     required
                                     margin="normal"
-                                    placeholder="Brief description of the issue"
                                 />
                             </Grid>
 
+                            {/* Description */}
                             <Grid item xs={12}>
                                 <TextField
                                     fullWidth
@@ -177,111 +311,136 @@ const IssueModal = ({ open, onClose, projectId, issueId, onSuccess }) => {
                                     value={formData.description}
                                     onChange={handleChange}
                                     multiline
-                                    rows={4}
+                                    rows={3}
                                     margin="normal"
-                                    placeholder="Detailed description of the issue..."
                                 />
                             </Grid>
 
+                            {/* Issue Type */}
                             <Grid item xs={12} md={6}>
-                                <FormControl fullWidth margin="normal">
-                                    <InputLabel>Issue Type</InputLabel>
-                                    <Select
-                                        name="issue_type"
-                                        value={formData.issue_type}
-                                        onChange={handleChange}
-                                        label="Issue Type"
-                                    >
-                                        <MenuItem value="TASK">
-                                            <Chip label="Task" color="primary" size="small" /> Task
-                                        </MenuItem>
-                                        <MenuItem value="BUG">
-                                            <Chip label="Bug" color="error" size="small" /> Bug
-                                        </MenuItem>
-                                        <MenuItem value="STORY">
-                                            <Chip label="Story" color="success" size="small" /> Story
-                                        </MenuItem>
-                                    </Select>
-                                </FormControl>
+                                <TextField
+                                    fullWidth
+                                    select
+                                    label="Issue Type"
+                                    name="issue_type"
+                                    value={formData.issue_type}
+                                    onChange={handleChange}
+                                    margin="normal"
+                                >
+                                    <MenuItem value="STORY">Story</MenuItem>
+                                    <MenuItem value="TASK">Task</MenuItem>
+                                    <MenuItem value="BUG">Bug</MenuItem>
+                                    <MenuItem value="EPIC">Epic</MenuItem>
+                                </TextField>
                             </Grid>
 
+                            {/* Priority */}
                             <Grid item xs={12} md={6}>
-                                <FormControl fullWidth margin="normal">
-                                    <InputLabel>Priority</InputLabel>
-                                    <Select
-                                        name="priority"
-                                        value={formData.priority}
-                                        onChange={handleChange}
-                                        label="Priority"
-                                    >
-                                        <MenuItem value="LOW">
-                                            <Chip label="Low" color="success" size="small" /> Low
-                                        </MenuItem>
-                                        <MenuItem value="MEDIUM">
-                                            <Chip label="Medium" color="info" size="small" /> Medium
-                                        </MenuItem>
-                                        <MenuItem value="HIGH">
-                                            <Chip label="High" color="warning" size="small" /> High
-                                        </MenuItem>
-                                        <MenuItem value="CRITICAL">
-                                            <Chip label="Critical" color="error" size="small" /> Critical
-                                        </MenuItem>
-                                    </Select>
-                                </FormControl>
+                                <TextField
+                                    fullWidth
+                                    select
+                                    label="Priority"
+                                    name="priority"
+                                    value={formData.priority}
+                                    onChange={handleChange}
+                                    margin="normal"
+                                >
+                                    <MenuItem value="CRITICAL">Critical</MenuItem>
+                                    <MenuItem value="HIGH">High</MenuItem>
+                                    <MenuItem value="MEDIUM">Medium</MenuItem>
+                                    <MenuItem value="LOW">Low</MenuItem>
+                                </TextField>
                             </Grid>
 
+                            {/* Status */}
                             <Grid item xs={12} md={6}>
-                                <FormControl fullWidth margin="normal">
-                                    <InputLabel>Assignee</InputLabel>
-                                    <Select
-                                        name="assignee"
-                                        value={formData.assignee}
-                                        onChange={handleChange}
-                                        label="Assignee"
-                                    >
-                                        <MenuItem value="">Unassigned</MenuItem>
-                                        {mockUsers.map((user) => (
-                                            <MenuItem key={user.id} value={user.id}>
-                                                {user.name} ({user.role})
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                </FormControl>
+                                <TextField
+                                    fullWidth
+                                    select
+                                    label="Status"
+                                    name="status"
+                                    value={formData.status}
+                                    onChange={handleChange}
+                                    margin="normal"
+                                >
+                                    <MenuItem value="TO_DO">To Do</MenuItem>
+                                    <MenuItem value="IN_PROGRESS">In Progress</MenuItem>
+                                    <MenuItem value="REVIEW">Review</MenuItem>
+                                    <MenuItem value="DONE">Done</MenuItem>
+                                </TextField>
                             </Grid>
 
+                            {/* ✅ ASSIGNEE DROPDOWN */}
                             <Grid item xs={12} md={6}>
-                                <FormControl fullWidth margin="normal">
-                                    <InputLabel>Sprint</InputLabel>
-                                    <Select
-                                        name="sprint"
-                                        value={formData.sprint}
-                                        onChange={handleChange}
-                                        label="Sprint"
-                                    >
-                                        <MenuItem value="">No Sprint</MenuItem>
-                                        {mockSprints.map((sprint) => (
-                                            <MenuItem key={sprint.id} value={sprint.id}>
-                                                {sprint.name} ({sprint.status})
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                </FormControl>
+                                <TextField
+                                    fullWidth
+                                    select
+                                    label="Assignee"
+                                    name="assignee"
+                                    value={formData.assignee}
+                                    onChange={handleChange}
+                                    margin="normal"
+                                    disabled={loadingData}
+                                >
+                                    <MenuItem value="">
+                                        <em>Unassigned</em>
+                                    </MenuItem>
+                                    {teamMembers.map((member) => (
+                                        <MenuItem key={member.user_id || member.id} value={member.user_id || member.id}>
+                                            {member.name || member.username} ({member.email})
+                                        </MenuItem>
+                                    ))}
+                                </TextField>
+                                {teamMembers.length === 0 && !loadingData && (
+                                    <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
+                                        No team members found. Add members to the project first.
+                                    </Typography>
+                                )}
                             </Grid>
 
+                            {/* ✅ SPRINT DROPDOWN */}
+                            <Grid item xs={12} md={6}>
+                                <TextField
+                                    fullWidth
+                                    select
+                                    label="Sprint"
+                                    name="sprint"
+                                    value={formData.sprint}
+                                    onChange={handleChange}
+                                    margin="normal"
+                                    disabled={loadingData}
+                                >
+                                    <MenuItem value="">
+                                        <em>Backlog (No Sprint)</em>
+                                    </MenuItem>
+                                    {sprints.map((sprint) => (
+                                        <MenuItem key={sprint.id} value={sprint.id}>
+                                            {sprint.name} ({sprint.status})
+                                        </MenuItem>
+                                    ))}
+                                </TextField>
+                                {sprints.length === 0 && !loadingData && (
+                                    <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
+                                        No sprints available. Create a sprint first.
+                                    </Typography>
+                                )}
+                            </Grid>
+
+                            {/* Story Points */}
                             <Grid item xs={12} md={6}>
                                 <TextField
                                     fullWidth
                                     label="Story Points"
                                     name="story_points"
+                                    type="number"
                                     value={formData.story_points}
                                     onChange={handleChange}
                                     margin="normal"
-                                    type="number"
-                                    inputProps={{ min: 0, max: 100 }}
-                                    helperText="Estimation points (optional)"
+                                    inputProps={{ min: 0 }}
                                 />
                             </Grid>
 
+                            {/* Due Date */}
                             <Grid item xs={12} md={6}>
                                 <DatePicker
                                     label="Due Date"
@@ -294,11 +453,25 @@ const IssueModal = ({ open, onClose, projectId, issueId, onSuccess }) => {
                             </Grid>
                         </Grid>
                     </DialogContent>
-                    <DialogActions>
-                        <Button onClick={onClose} disabled={loading}>
+                    
+                    <DialogActions sx={{ p: 2 }}>
+                        <Button 
+                            onClick={handleClose} 
+                            disabled={loading}
+                            sx={{ borderRadius: '8px', textTransform: 'none' }}
+                        >
                             Cancel
                         </Button>
-                        <Button type="submit" variant="contained" disabled={loading}>
+                        <Button
+                            type="submit"
+                            variant="contained"
+                            disabled={loading || loadingData}
+                            sx={{ 
+                                borderRadius: '8px', 
+                                textTransform: 'none',
+                                background: 'linear-gradient(45deg, #3B82F6 30%, #8B5CF6 90%)',
+                            }}
+                        >
                             {loading ? 'Saving...' : isEditMode ? 'Update Issue' : 'Create Issue'}
                         </Button>
                     </DialogActions>

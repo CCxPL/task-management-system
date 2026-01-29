@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { issuesAPI } from '../../api/issues.api';  // ✅ Only this import needed
+import { issuesAPI } from '../../api/issues.api';
 
 /* ============================
    FETCH ISSUES
@@ -32,6 +32,42 @@ export const createIssue = createAsyncThunk(
             return response.data;
         } catch (error) {
             console.error('❌ [issueSlice] Failed to create issue:', error);
+            return rejectWithValue(error.response?.data || error.message);
+        }
+    }
+);
+
+/* ============================
+   UPDATE ISSUE
+============================ */
+export const updateIssue = createAsyncThunk(
+    'issues/updateIssue',
+    async ({ issueId, issueData }, { rejectWithValue }) => {
+        try {
+            console.log('📝 [issueSlice] Updating issue:', issueId, issueData);
+            const response = await issuesAPI.updateIssue(issueId, issueData);
+            console.log('✅ [issueSlice] Issue updated:', response.data);
+            return response.data;
+        } catch (error) {
+            console.error('❌ [issueSlice] Failed to update issue:', error);
+            return rejectWithValue(error.response?.data || error.message);
+        }
+    }
+);
+
+/* ============================
+   DELETE ISSUE
+============================ */
+export const deleteIssue = createAsyncThunk(
+    'issues/deleteIssue',
+    async (issueId, { rejectWithValue }) => {
+        try {
+            console.log('🗑️  [issueSlice] Deleting issue:', issueId);
+            await issuesAPI.deleteIssue(issueId);
+            console.log('✅ [issueSlice] Issue deleted');
+            return issueId;
+        } catch (error) {
+            console.error('❌ [issueSlice] Failed to delete issue:', error);
             return rejectWithValue(error.response?.data || error.message);
         }
     }
@@ -73,13 +109,7 @@ const issueSlice = createSlice({
 
     initialState: {
         list: [],
-        kanbanIssues: {
-            BACKLOG: [],
-            TO_DO: [],
-            IN_PROGRESS: [],
-            REVIEW: [],
-            DONE: [],
-        },
+        kanbanIssues: {},  // ✅ DYNAMIC - will be populated based on workflow
         loading: false,
         error: null,
     },
@@ -116,6 +146,31 @@ const issueSlice = createSlice({
         clearIssueError: (state) => {
             state.error = null;
         },
+
+        // ✅ SET KANBAN COLUMNS DYNAMICALLY
+        setKanbanColumns: (state, action) => {
+            const columns = action.payload;
+            console.log('🔄 [issueSlice] Setting kanban columns:', columns);
+            
+            // Initialize empty arrays for each column
+            const kanbanIssues = {};
+            columns.forEach(col => {
+                kanbanIssues[col.frontendKey] = [];
+            });
+            
+            // Distribute issues into columns
+            state.list.forEach(issue => {
+                const column = columns.find(col => col.frontendKey === issue.status);
+                if (column && kanbanIssues[column.frontendKey]) {
+                    kanbanIssues[column.frontendKey].push(issue);
+                } else {
+                    console.warn(`⚠️ Issue ${issue.id} has unknown status: ${issue.status}`);
+                }
+            });
+            
+            state.kanbanIssues = kanbanIssues;
+            console.log('✅ [issueSlice] Kanban columns set:', Object.keys(kanbanIssues));
+        },
     },
 
     extraReducers: (builder) => {
@@ -136,17 +191,15 @@ const issueSlice = createSlice({
 
                 console.log('📊 [issueSlice] Grouping issues by status');
 
-                const grouped = {
-                    BACKLOG: [],
-                    TO_DO: [],
-                    IN_PROGRESS: [],
-                    REVIEW: [],
-                    DONE: [],
-                };
+                // ✅ Group issues into existing kanban columns
+                const grouped = {};
+                Object.keys(state.kanbanIssues).forEach(key => {
+                    grouped[key] = [];
+                });
 
                 issues.forEach(issue => {
                     const status = issue.status;
-                    if (grouped[status]) {
+                    if (grouped[status] !== undefined) {
                         grouped[status].push(issue);
                     } else {
                         console.warn(`⚠️ [issueSlice] Unknown status: ${status} for issue ${issue.id}`);
@@ -155,38 +208,12 @@ const issueSlice = createSlice({
 
                 state.kanbanIssues = grouped;
                 
-                console.log('✅ [issueSlice] Issues grouped:', {
-                    BACKLOG: grouped.BACKLOG.length,
-                    TO_DO: grouped.TO_DO.length,
-                    IN_PROGRESS: grouped.IN_PROGRESS.length,
-                    REVIEW: grouped.REVIEW.length,
-                    DONE: grouped.DONE.length,
-                });
+                console.log('✅ [issueSlice] Issues grouped:', 
+                    Object.keys(grouped).map(key => `${key}: ${grouped[key].length}`)
+                );
             })
             .addCase(fetchIssues.rejected, (state, action) => {
                 state.loading = false;
-                state.error = action.payload;
-                console.error('❌ [issueSlice] Fetch issues failed:', action.payload);
-            })
-
-            /* ================= UPDATE STATUS ================= */
-            .addCase(updateIssueStatus.fulfilled, (state, action) => {
-                const { issueId, status: newStatus } = action.payload;
-                
-                console.log('✅ [issueSlice] Backend confirmed status update:', { issueId, newStatus });
-                
-                const issueIndex = state.list.findIndex(i => i.id === issueId);
-                if (issueIndex !== -1) {
-                    state.list[issueIndex].status = newStatus;
-                }
-                
-                const statuses = ['BACKLOG', 'TO_DO', 'IN_PROGRESS', 'REVIEW', 'DONE'];
-                statuses.forEach(s => {
-                    state.kanbanIssues[s] = state.list.filter(i => i.status === s);
-                });
-            })
-            .addCase(updateIssueStatus.rejected, (state, action) => {
-                console.error('❌ [issueSlice] Update status rejected:', action.payload);
                 state.error = action.payload;
             })
 
@@ -198,20 +225,72 @@ const issueSlice = createSlice({
                 state.loading = false;
                 const newIssue = action.payload;
                 
-                console.log('✅ [issueSlice] Issue created, adding to state:', newIssue);
-                
                 state.list.push(newIssue);
                 
-                const status = newIssue.status || 'BACKLOG';
+                const status = newIssue.status;
                 if (state.kanbanIssues[status]) {
                     state.kanbanIssues[status].push(newIssue);
-                    console.log(`✅ [issueSlice] Added to kanban: ${status}`);
                 }
             })
             .addCase(createIssue.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
-                console.error('❌ [issueSlice] Create issue failed:', action.payload);
+            })
+
+            /* ================= UPDATE ISSUE ================= */
+            .addCase(updateIssue.fulfilled, (state, action) => {
+                const updatedIssue = action.payload;
+                
+                const listIndex = state.list.findIndex(i => i.id === updatedIssue.id);
+                if (listIndex !== -1) {
+                    const oldStatus = state.list[listIndex].status;
+                    state.list[listIndex] = updatedIssue;
+                    
+                    if (oldStatus !== updatedIssue.status) {
+                        if (state.kanbanIssues[oldStatus]) {
+                            state.kanbanIssues[oldStatus] = state.kanbanIssues[oldStatus].filter(
+                                i => i.id !== updatedIssue.id
+                            );
+                        }
+                        if (state.kanbanIssues[updatedIssue.status]) {
+                            state.kanbanIssues[updatedIssue.status].push(updatedIssue);
+                        }
+                    } else {
+                        const kanbanIndex = state.kanbanIssues[updatedIssue.status]?.findIndex(
+                            i => i.id === updatedIssue.id
+                        );
+                        if (kanbanIndex !== -1) {
+                            state.kanbanIssues[updatedIssue.status][kanbanIndex] = updatedIssue;
+                        }
+                    }
+                }
+            })
+
+            /* ================= DELETE ISSUE ================= */
+            .addCase(deleteIssue.fulfilled, (state, action) => {
+                const issueId = action.payload;
+                
+                state.list = state.list.filter(i => i.id !== issueId);
+                
+                Object.keys(state.kanbanIssues).forEach(status => {
+                    state.kanbanIssues[status] = state.kanbanIssues[status].filter(
+                        i => i.id !== issueId
+                    );
+                });
+            })
+
+            /* ================= UPDATE STATUS ================= */
+            .addCase(updateIssueStatus.fulfilled, (state, action) => {
+                const { issueId, status: newStatus } = action.payload;
+                
+                const issueIndex = state.list.findIndex(i => i.id === issueId);
+                if (issueIndex !== -1) {
+                    state.list[issueIndex].status = newStatus;
+                }
+                
+                Object.keys(state.kanbanIssues).forEach(status => {
+                    state.kanbanIssues[status] = state.list.filter(i => i.status === status);
+                });
             });
     },
 });
@@ -219,6 +298,7 @@ const issueSlice = createSlice({
 export const {
     moveIssueLocally,
     clearIssueError,
+    setKanbanColumns,  // ✅ EXPORT THIS
 } = issueSlice.actions;
 
 export default issueSlice.reducer;

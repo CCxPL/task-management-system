@@ -1,78 +1,99 @@
-// app/slices/teamSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axiosInstance from '../../api/axios';
+import { teamAPI } from '../../api/team.api';
 
+// Fetch team members
 export const fetchTeamMembers = createAsyncThunk(
-    'team/fetchMembers',
-    async (_, { rejectWithValue }) => {  // ✅ No need for orgId parameter
-        try {
-            console.log('🔄 Fetching team members...');
-            
-            const response = await axiosInstance.get('/accounts/team/');
-            
-            console.log('✅ Team members response:', response.data);
-            return response.data;
-        } catch (error) {
-            console.error('❌ Failed to fetch team members:', error.response?.data);
-            return rejectWithValue(error.response?.data || error.message);
-        }
+  'team/fetchMembers',
+  async (_, { rejectWithValue }) => {
+    try {
+      const data = await teamAPI.getTeamMembers();
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || 'Failed to fetch team members');
     }
+  }
 );
 
+// Add team member
 export const addTeamMember = createAsyncThunk(
-    'team/addMember',
-    async (memberData, { rejectWithValue }) => {
-        try {
-            console.log('📝 Adding team member:', memberData);
-            
-            const response = await axiosInstance.post('/accounts/create-org-user/', {
-                email: memberData.email,
-                username: memberData.name,
-                role: memberData.role,
-            });
-            
-            console.log('✅ Member added:', response.data);
-            return response.data;
-        } catch (error) {
-            console.error('❌ Failed to add member:', error.response?.data);
-            return rejectWithValue(error.response?.data || error.message);
-        }
+  'team/addMember',
+  async (memberData, { rejectWithValue }) => {
+    try {
+      const data = await teamAPI.addTeamMember(memberData);
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || 'Failed to add member');
     }
+  }
+);
+
+// ✅ Update team member
+export const updateTeamMember = createAsyncThunk(
+  'team/updateMember',
+  async ({ memberId, data }, { rejectWithValue }) => {
+    try {
+      const result = await teamAPI.updateTeamMember(memberId, data);
+      return result;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || 'Failed to update member');
+    }
+  }
+);
+
+// ✅ Delete team member
+export const deleteTeamMember = createAsyncThunk(
+  'team/deleteMember',
+  async (memberId, { rejectWithValue }) => {
+    try {
+      await teamAPI.deleteTeamMember(memberId);
+      return memberId;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || 'Failed to delete member');
+    }
+  }
 );
 
 const teamSlice = createSlice({
-    name: 'team',
-    initialState: {
-        list: [],
-        loading: false,
-        error: null,
-    },
-    reducers: {
-        clearTeamError: (state) => {
-            state.error = null;
-        },
-    },
-    extraReducers: (builder) => {
-        builder
-            .addCase(fetchTeamMembers.pending, (state) => {
-                state.loading = true;
-                state.error = null;
-            })
-            .addCase(fetchTeamMembers.fulfilled, (state, action) => {
-                state.loading = false;
-                state.list = action.payload;
-                console.log('✅ Team members loaded:', action.payload.length);
-            })
-            .addCase(fetchTeamMembers.rejected, (state, action) => {
-                state.loading = false;
-                state.error = action.payload;
-            })
-            .addCase(addTeamMember.fulfilled, (state, action) => {
-                // Note: backend returns different format, so just refetch
-                console.log('✅ Member added, will refetch list');
-            });
-    },
+  name: 'team',
+  initialState: {
+    list: [],
+    loading: false,
+    error: null,
+  },
+  reducers: {},
+  extraReducers: (builder) => {
+    builder
+      // Fetch members
+      .addCase(fetchTeamMembers.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchTeamMembers.fulfilled, (state, action) => {
+        state.loading = false;
+        state.list = action.payload;
+      })
+      .addCase(fetchTeamMembers.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      
+      // Add member
+      .addCase(addTeamMember.fulfilled, (state, action) => {
+        state.list.push(action.payload);
+      })
+      
+      // ✅ Update member
+      .addCase(updateTeamMember.fulfilled, (state, action) => {
+        const index = state.list.findIndex(m => m.id === action.payload.id);
+        if (index !== -1) {
+          state.list[index] = action.payload;
+        }
+      })
+      
+      // ✅ Delete member
+      .addCase(deleteTeamMember.fulfilled, (state, action) => {
+        state.list = state.list.filter(m => m.id !== action.payload);
+      });
+  },
 });
 
-export const { clearTeamError } = teamSlice.actions;
 export default teamSlice.reducer;

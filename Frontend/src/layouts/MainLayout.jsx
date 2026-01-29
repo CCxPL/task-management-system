@@ -3,6 +3,10 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import DarkModeToggle from '../components/common/DarkModeToggle.jsx';
 import {
+    // ... existing imports
+    Settings,  // ✅ ADD THIS
+} from '@mui/icons-material';
+import {
     AppBar,
     Box,
     CssBaseline,
@@ -220,6 +224,7 @@ const MainLayout = () => {
                                 {item.icon === 'rocket' && <FormatListBulleted />}
                                 {item.icon === 'task' && <ViewKanban />}
                                 {item.icon === 'group' && <Person />}
+                                {item.icon === 'settings' && <Settings />}
                                 {/* Add more icon mappings as needed */}
                             </ListItemIcon>
                             <ListItemText
@@ -269,23 +274,23 @@ const MainLayout = () => {
                     </IconButton>
 
                     {/* Welcome Message with Organization Name */}
-                    <Box sx={{ flexGrow: 1 }}>
-                        <Typography variant="h6" noWrap sx={{ color: textColor }}>
-                            {welcomeTitle}
+                    {/* Welcome Message with Organization Name */}
+                <Box sx={{ flexGrow: 1 }}>
+                    <Typography variant="h6" noWrap sx={{ color: textColor }}>
+                        Welcome, {user?.username || 'User'}
+                    </Typography>
+                    {user?.organization?.name && (
+                        <Typography variant="caption" sx={{
+                            color: isDarkMode ? '#B6C2CF' : '#6B778C',
+                            display: 'block'
+                        }}>
+                            {user.organization.name}
+                            {user.organization.type === 'SCHOOL' && ' School'}
+                            {user.organization.type === 'INSTITUTE' && ' Institute'}
+                            {user.organization.type === 'COMPANY' && ' Company'}
                         </Typography>
-                        {user?.organization?.name && (
-                            <Typography variant="caption" sx={{
-                                color: isDarkMode ? '#B6C2CF' : '#6B778C',
-                                display: 'block'
-                            }}>
-                                {user.organization.name}
-                                {user.organization.type === 'SCHOOL' && ' School'}
-                                {user.organization.type === 'INSTITUTE' && ' Institute'}
-                                {user.organization.type === 'COMPANY' && ' Company'}
-                            </Typography>
-                        )}
-                    </Box>
-
+                    )}
+                </Box>
                     {/* Organization Status Chip (for ORG_ADMIN) */}
                     {user?.role === 'ORG_ADMIN' && (
                         <Chip

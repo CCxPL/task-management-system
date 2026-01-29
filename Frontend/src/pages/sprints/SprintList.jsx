@@ -17,7 +17,6 @@ import {
     useMediaQuery,
     Card,
     CardContent,
-    Grid,
     Stack,
 } from '@mui/material';
 import {
@@ -35,7 +34,11 @@ const SprintList = () => {
     const [sprints, setSprints] = useState([]);
     const [loading, setLoading] = useState(true);
     const [openModal, setOpenModal] = useState(false);
+    const [selectedSprint, setSelectedSprint] = useState(null); // ✅ YEH LINE ADD KARO
     const { user } = useSelector((state) => state.auth);
+    
+    // ✅ GET CURRENT PROJECT FROM REDUX
+    const { currentProject } = useSelector((state) => state.projectContext);
 
     // Responsive hooks
     const theme = useTheme();
@@ -43,25 +46,50 @@ const SprintList = () => {
     const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
 
     useEffect(() => {
-        fetchSprints();
-    }, []);
+        // ✅ Only fetch if project is available
+        if (currentProject?.id) {
+            fetchSprints();
+        }
+    }, [currentProject?.id]); // ✅ Re-fetch when project changes
 
     const fetchSprints = async () => {
         try {
             setLoading(true);
-            const data = await sprintsAPI.getSprintsByProject(null);
+            
+            // ✅ PASS CURRENT PROJECT ID
+            console.log('📥 Fetching sprints for project:', currentProject.id);
+            const data = await sprintsAPI.getSprintsByProject(currentProject.id);
+            
+            console.log('✅ Sprints loaded:', data.length);
             setSprints(data);
         } catch (error) {
-            console.error('Error fetching sprints:', error);
+            console.error('❌ Error fetching sprints:', error);
+            setSprints([]); // ✅ Set empty array on error
         } finally {
             setLoading(false);
         }
     };
 
     // API Contract: Role-based permissions
-    const canCreateSprint = ['ADMIN', 'MANAGER'].includes(user?.role);
+    const canCreateSprint = ['ADMIN', 'MANAGER', 'ORG_ADMIN'].includes(user?.role);
 
     if (loading) return <Loader />;
+
+    // ✅ SHOW MESSAGE IF NO PROJECT SELECTED
+    if (!currentProject) {
+        return (
+            <Box sx={{ p: 3, textAlign: 'center' }}>
+                <Paper sx={{ p: 4 }}>
+                    <Typography variant="h6" color="textSecondary" gutterBottom>
+                        No Project Selected
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary">
+                        Please select a project from the dashboard to view sprints.
+                    </Typography>
+                </Paper>
+            </Box>
+        );
+    }
 
     // ========== MOBILE VIEW (Cards) ==========
     if (isMobile) {
@@ -70,7 +98,7 @@ const SprintList = () => {
                 {/* Header */}
                 <Box sx={{ mb: 3 }}>
                     <Typography variant="h5" fontWeight="bold" gutterBottom>
-                        Sprints
+                        Sprints - {currentProject.name}
                     </Typography>
                     <Typography variant="body2" color="textSecondary">
                         Manage and track all sprints
@@ -82,7 +110,10 @@ const SprintList = () => {
                     <Button
                         variant="contained"
                         startIcon={<AddIcon />}
-                        onClick={() => setOpenModal(true)}
+                        onClick={() => {
+                            setSelectedSprint(null); // ✅ New sprint
+                            setOpenModal(true);
+                        }}
                         fullWidth
                         sx={{ mb: 3 }}
                     >
@@ -103,7 +134,10 @@ const SprintList = () => {
                             <Button
                                 variant="outlined"
                                 startIcon={<AddIcon />}
-                                onClick={() => setOpenModal(true)}
+                                onClick={() => {
+                                    setSelectedSprint(null); // ✅ New sprint
+                                    setOpenModal(true);
+                                }}
                             >
                                 Create First Sprint
                             </Button>
@@ -181,7 +215,10 @@ const SprintList = () => {
                                         {canCreateSprint && (
                                             <IconButton
                                                 color="info"
-                                                onClick={() => setOpenModal(true)}
+                                                onClick={() => {
+                                                    setSelectedSprint(sprint); // ✅ Edit sprint
+                                                    setOpenModal(true);
+                                                }}
                                                 title="Edit Sprint"
                                                 size="small"
                                             >
@@ -198,7 +235,12 @@ const SprintList = () => {
                 {/* Sprint Modal */}
                 <SprintModal
                     open={openModal}
-                    onClose={() => setOpenModal(false)}
+                    onClose={() => {
+                        setOpenModal(false);
+                        setSelectedSprint(null); // ✅ Clear selection
+                    }}
+                    projectId={currentProject.id}
+                    sprint={selectedSprint} // ✅ Pass selected sprint
                     onSuccess={fetchSprints}
                 />
             </Box>
@@ -217,7 +259,7 @@ const SprintList = () => {
             }}>
                 <Box>
                     <Typography variant="h4" fontWeight="bold" gutterBottom>
-                        Sprints
+                        Sprints - {currentProject.name}
                     </Typography>
                     <Typography variant="body1" color="textSecondary">
                         Manage and track all sprints
@@ -229,7 +271,10 @@ const SprintList = () => {
                     <Button
                         variant="contained"
                         startIcon={<AddIcon />}
-                        onClick={() => setOpenModal(true)}
+                        onClick={() => {
+                            setSelectedSprint(null); // ✅ New sprint
+                            setOpenModal(true);
+                        }}
                     >
                         Create Sprint
                     </Button>
@@ -338,7 +383,10 @@ const SprintList = () => {
                                         {canCreateSprint && (
                                             <IconButton
                                                 color="info"
-                                                onClick={() => setOpenModal(true)}
+                                                onClick={() => {
+                                                    setSelectedSprint(sprint); // ✅ Edit sprint
+                                                    setOpenModal(true);
+                                                }}
                                                 title="Edit Sprint"
                                                 size="small"
                                             >
@@ -366,7 +414,10 @@ const SprintList = () => {
                         <Button
                             variant="outlined"
                             startIcon={<AddIcon />}
-                            onClick={() => setOpenModal(true)}
+                            onClick={() => {
+                                setSelectedSprint(null); // ✅ New sprint
+                                setOpenModal(true);
+                            }}
                         >
                             Create First Sprint
                         </Button>
@@ -377,7 +428,12 @@ const SprintList = () => {
             {/* Sprint Modal */}
             <SprintModal
                 open={openModal}
-                onClose={() => setOpenModal(false)}
+                onClose={() => {
+                    setOpenModal(false);
+                    setSelectedSprint(null); // ✅ Clear selection
+                }}
+                projectId={currentProject.id}
+                sprint={selectedSprint} // ✅ Pass selected sprint
                 onSuccess={fetchSprints}
             />
         </Box>

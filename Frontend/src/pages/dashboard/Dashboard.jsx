@@ -34,6 +34,7 @@ import {
   Stack,
   Badge,
   AvatarGroup,
+  InputAdornment
 } from '@mui/material';
 
 import {
@@ -50,6 +51,8 @@ import {
   ChevronRight as ChevronRightIcon,
   Description as DescriptionIcon,
   CalendarToday as CalendarIcon,
+  CheckCircle as CheckCircleIcon,      // ✅ ADD THIS
+  ContentCopy as ContentCopyIcon,      // ✅ ADD THIS
   Assignment as AssignmentIcon,
   Schedule as ScheduleIcon,
   Settings as SettingsIcon,
@@ -103,12 +106,19 @@ const Dashboard = () => {
     end_date: '',
   });
 
-  const [memberForm, setMemberForm] = useState({
-    name: '',
-    email: '',
-    role: 'MEMBER',
-  });
-
+// Update state to include password
+const [memberForm, setMemberForm] = useState({
+  name: '',
+  email: '',
+  role: 'MEMBER',
+  password: '',  // ✅ ADD THIS
+});
+const [credentialsDialog, setCredentialsDialog] = useState({
+  open: false,
+  email: '',
+  password: '',
+  name: ''
+});
   const [snackOpen, setSnackOpen] = useState(false);
   const [snackMsg, setSnackMsg] = useState('');
 
@@ -322,24 +332,53 @@ const Dashboard = () => {
   };
 
   const handleCreateMember = async () => {
-    try {
-      await dispatch(addTeamMember({
-        name: memberForm.name,
+  try {
+    console.log('📝 Creating member:', memberForm);
+    
+    const response = await fetch('http://localhost:8000/api/accounts/create-org-user/', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
         email: memberForm.email,
+        username: memberForm.name.toLowerCase().replace(/\s+/g, '_'),
         role: memberForm.role,
-      })).unwrap();
+        password: memberForm.password  // ✅ Include password
+      })
+    });
 
-      setSnackMsg(`✅ Member "${memberForm.name}" added successfully!`);
-      setSnackOpen(true);
-      setOpenMemberModal(false);
-      setMemberForm({ name: '', email: '', role: 'MEMBER' });
-      dispatch(fetchTeamMembers());
-    } catch (err) {
-      setSnackMsg(typeof err === 'string' ? err : '❌ Failed to add member');
-      setSnackOpen(true);
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to create member');
     }
-  };
 
+    console.log('✅ Member created:', data);
+
+    // ✅ Show credentials in dialog
+    if (data.credentials) {
+      setCredentialsDialog({
+        open: true,
+        email: data.credentials.email,
+        password: data.credentials.password,
+        name: memberForm.name
+      });
+    }
+    
+    setOpenMemberModal(false);
+    setMemberForm({ name: '', email: '', role: 'MEMBER', password: '' });
+    
+    // Refresh team members list
+    dispatch(fetchTeamMembers());
+    
+  } catch (err) {
+    console.error('❌ Failed to create member:', err);
+    setSnackMsg(`❌ ${err.message || 'Failed to add member'}`);
+    setSnackOpen(true);
+  }
+};
   const handleRefresh = () => {
     console.log('🔄 Refreshing dashboard data...');
     dispatch(fetchProjects());
@@ -1431,11 +1470,152 @@ const Dashboard = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Add Member Modal */}
-      <Dialog 
-        open={openMemberModal} 
-        onClose={() => setOpenMemberModal(false)} 
-        maxWidth="sm" 
+     {/* Add Member Modal */}
+<Dialog 
+  open={openMemberModal} 
+  onClose={() => setOpenMemberModal(false)} 
+  maxWidth="sm" 
+  fullWidth
+  PaperProps={{
+    sx: {
+      borderRadius: '3px',
+      bgcolor: isDarkMode ? '#22272B' : '#FFFFFF'
+    }
+  }}
+>
+  <DialogTitle sx={{ borderBottom: `1px solid ${isDarkMode ? '#3D444D' : '#EBECF0'}` }}>
+    <Box display="flex" justifyContent="space-between" alignItems="center">
+      <Typography variant="h6" fontWeight="500" sx={{ color: isDarkMode ? '#B6C2CF' : '#172B4D' }}>
+        Add Team Member
+      </Typography>
+      <IconButton 
+        onClick={() => setOpenMemberModal(false)} 
+        size="small"
+        sx={{ bgcolor: isDarkMode ? '#1D2125' : '#EBECF0' }}
+      >
+        <CloseIcon fontSize="small" />
+      </IconButton>
+    </Box>
+  </DialogTitle>
+  
+  <DialogContent sx={{ pt: 3 }}>
+    <TextField
+      label="Full Name"
+      name="name"
+      value={memberForm.name}
+      onChange={handleMemberChange}
+      fullWidth
+      required
+      placeholder="e.g., John Doe"
+      sx={{ mb: 2 }}
+    />
+    
+    <TextField
+      label="Email Address"
+      name="email"
+      type="email"
+      value={memberForm.email}
+      onChange={handleMemberChange}
+      fullWidth
+      required
+      placeholder="john@example.com"
+      helperText="This will be used for login"
+      sx={{ mb: 2 }}
+    />
+    
+    {/* ✅ NEW: Password Field */}
+    <TextField
+      label="Initial Password"
+      name="password"
+      type="password"
+      value={memberForm.password}
+      onChange={handleMemberChange}
+      fullWidth
+      required
+      placeholder="Minimum 8 characters"
+      helperText="Set a secure password for this member to login"
+      sx={{ mb: 2 }}
+      InputProps={{
+        endAdornment: (
+          <InputAdornment position="end">
+            <IconButton
+              edge="end"
+              onClick={() => {
+                // Generate random password
+                const randomPass = Math.random().toString(36).slice(-10) + 
+                                   Math.random().toString(36).slice(-10).toUpperCase() + 
+                                   '!@#'[Math.floor(Math.random() * 3)];
+                setMemberForm({ ...memberForm, password: randomPass });
+              }}
+              size="small"
+              title="Generate random password"
+            >
+              <RefreshIcon fontSize="small" />
+            </IconButton>
+          </InputAdornment>
+        )
+      }}
+    />
+    
+    <TextField
+      select
+      label="Role"
+      name="role"
+      value={memberForm.role}
+      onChange={handleMemberChange}
+      fullWidth
+      required
+      helperText="Select member's role in the organization"
+    >
+      <MenuItem value="MANAGER">Manager</MenuItem>
+      <MenuItem value="MEMBER">Member</MenuItem>
+    </TextField>
+    
+    {/* ✅ Password Preview */}
+    {memberForm.password && (
+      <Alert severity="info" sx={{ mt: 2, borderRadius: '3px' }}>
+        <Typography variant="body2" fontWeight="500">
+          Password Preview:
+        </Typography>
+        <Typography variant="body2" sx={{ fontFamily: 'monospace', mt: 0.5 }}>
+          {memberForm.password}
+        </Typography>
+        <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
+          Make sure to share this password securely with the new member
+        </Typography>
+      </Alert>
+    )}
+  </DialogContent>
+  
+  <DialogActions sx={{ borderTop: `1px solid ${isDarkMode ? '#3D444D' : '#EBECF0'}`, p: 2 }}>
+    <Button 
+      onClick={() => {
+        setOpenMemberModal(false);
+        setMemberForm({ name: '', email: '', role: 'MEMBER', password: '' });
+      }}
+      sx={{ textTransform: 'none', color: isDarkMode ? '#9FADBC' : '#42526E' }}
+    >
+      Cancel
+    </Button>
+    <Button 
+      variant="contained" 
+      onClick={handleCreateMember} 
+      disabled={!orgId || !memberForm.name || !memberForm.email || !memberForm.password}
+      sx={{ 
+        textTransform: 'none',
+        bgcolor: '#0052CC',
+        '&:hover': { bgcolor: '#0747A6' }
+      }}
+    >
+      Add Member
+    </Button>
+  </DialogActions>
+</Dialog>
+{/* ✅ NEW: Credentials Dialog */}
+      <Dialog
+        open={credentialsDialog.open}
+        onClose={() => setCredentialsDialog({ open: false, email: '', password: '', name: '' })}
+        maxWidth="sm"
         fullWidth
         PaperProps={{
           sx: {
@@ -1445,70 +1625,106 @@ const Dashboard = () => {
         }}
       >
         <DialogTitle sx={{ borderBottom: `1px solid ${isDarkMode ? '#3D444D' : '#EBECF0'}` }}>
-          <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Typography variant="h6" fontWeight="500" sx={{ color: isDarkMode ? '#B6C2CF' : '#172B4D' }}>
-              Add Team Member
-            </Typography>
-            <IconButton 
-              onClick={() => setOpenMemberModal(false)} 
-              size="small"
-              sx={{ bgcolor: isDarkMode ? '#1D2125' : '#EBECF0' }}
-            >
-              <CloseIcon fontSize="small" />
-            </IconButton>
+          <Box display="flex" alignItems="center" gap={2}>
+            <Avatar sx={{ bgcolor: '#36B37E' }}>
+              <CheckCircleIcon />
+            </Avatar>
+            <Box>
+              <Typography variant="h6" fontWeight="500" sx={{ color: isDarkMode ? '#B6C2CF' : '#172B4D' }}>
+                Member Created Successfully!
+              </Typography>
+              <Typography variant="body2" color="textSecondary">
+                {credentialsDialog.name} has been added to your organization
+              </Typography>
+            </Box>
           </Box>
         </DialogTitle>
+
         <DialogContent sx={{ pt: 3 }}>
-          <TextField
-            label="Full Name"
-            name="name"
-            value={memberForm.name}
-            onChange={handleMemberChange}
-            fullWidth
-            required
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            label="Email"
-            name="email"
-            type="email"
-            value={memberForm.email}
-            onChange={handleMemberChange}
-            fullWidth
-            required
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            select
-            label="Role"
-            name="role"
-            value={memberForm.role}
-            onChange={handleMemberChange}
-            fullWidth
-            required
-          >
-            <MenuItem value="MANAGER">Manager</MenuItem>
-            <MenuItem value="MEMBER">Member</MenuItem>
-          </TextField>
+          <Alert severity="warning" sx={{ mb: 3, borderRadius: '3px' }}>
+            <Typography variant="body2" fontWeight="500" gutterBottom>
+              ⚠️ Important: Save these credentials
+            </Typography>
+            <Typography variant="caption">
+              Share these credentials securely with the new member. They won't be shown again.
+            </Typography>
+          </Alert>
+
+          <Paper sx={{ p: 2, bgcolor: isDarkMode ? '#1D2125' : '#F4F5F7', borderRadius: '3px' }}>
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <Typography variant="caption" color="textSecondary">
+                  Email (Login Username)
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                  <Typography variant="body1" fontWeight="500" sx={{ fontFamily: 'monospace' }}>
+                    {credentialsDialog.email}
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      navigator.clipboard.writeText(credentialsDialog.email);
+                      setSnackMsg('✅ Email copied to clipboard');
+                      setSnackOpen(true);
+                    }}
+                  >
+                    <ContentCopyIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Typography variant="caption" color="textSecondary">
+                  Password
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                  <Typography variant="body1" fontWeight="500" sx={{ fontFamily: 'monospace' }}>
+                    {credentialsDialog.password}
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      navigator.clipboard.writeText(credentialsDialog.password);
+                      setSnackMsg('✅ Password copied to clipboard');
+                      setSnackOpen(true);
+                    }}
+                  >
+                    <ContentCopyIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  startIcon={<ContentCopyIcon />}
+                  onClick={() => {
+                    const text = `Login Credentials for ${credentialsDialog.name}\n\nEmail: ${credentialsDialog.email}\nPassword: ${credentialsDialog.password}\n\nPlease change your password after first login.`;
+                    navigator.clipboard.writeText(text);
+                    setSnackMsg('✅ Full credentials copied to clipboard');
+                    setSnackOpen(true);
+                  }}
+                  sx={{ mt: 1 }}
+                >
+                  Copy All Credentials
+                </Button>
+              </Grid>
+            </Grid>
+          </Paper>
         </DialogContent>
+
         <DialogActions sx={{ borderTop: `1px solid ${isDarkMode ? '#3D444D' : '#EBECF0'}`, p: 2 }}>
-          <Button 
-            onClick={() => setOpenMemberModal(false)}
-            sx={{ textTransform: 'none', color: isDarkMode ? '#9FADBC' : '#42526E' }}
-          >
-            Cancel
-          </Button>
-          <Button 
-            variant="contained" 
-            onClick={handleCreateMember} 
-            disabled={!orgId || !memberForm.name || !memberForm.email}
+          <Button
+            variant="contained"
+            onClick={() => setCredentialsDialog({ open: false, email: '', password: '', name: '' })}
             sx={{ 
               textTransform: 'none',
               bgcolor: '#0052CC',
               '&:hover': { bgcolor: '#0747A6' }
             }}
           >
-            Add Member
+            Done
           </Button>
         </DialogActions>
       </Dialog>

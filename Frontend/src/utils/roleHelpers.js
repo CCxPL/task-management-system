@@ -11,6 +11,7 @@ export const getRoleDisplayName = (role, orgType = 'COMPANY') => {
         'SCHOOL': {
             'SUPER_ADMIN': 'Super Admin',
             'ORG_ADMIN': 'Mentor',
+            'ADMIN': 'Admin',
             'MANAGER': 'Senior Mentor',
             'MEMBER': 'Student',
             'STUDENT': 'Student'
@@ -18,6 +19,7 @@ export const getRoleDisplayName = (role, orgType = 'COMPANY') => {
         'INSTITUTE': {
             'SUPER_ADMIN': 'Super Admin',
             'ORG_ADMIN': 'Admin',
+            'ADMIN': 'Admin',
             'MANAGER': 'Manager',
             'MEMBER': 'Member',
             'STUDENT': 'Student'
@@ -25,6 +27,7 @@ export const getRoleDisplayName = (role, orgType = 'COMPANY') => {
         'COMPANY': {
             'SUPER_ADMIN': 'Super Admin',
             'ORG_ADMIN': 'Admin',
+            'ADMIN': 'Admin',
             'MANAGER': 'Manager',
             'MEMBER': 'Employee'
         }
@@ -65,51 +68,67 @@ export const getWelcomeTitle = (user) => {
 
 // Get menu items based on role
 export const getMenuItems = (user) => {
-    const baseItems = [
-        { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
-        { path: '/profile', label: 'Profile', icon: 'person' },
-    ];
-
-    if (!user) return baseItems;
+    console.log('🔍 getMenuItems called with user:', user); // ✅ Debug log
+    
+    if (!user) {
+        console.log('❌ No user found!');
+        return [
+            { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
+            { path: '/profile', label: 'Profile', icon: 'person' },
+        ];
+    }
 
     const { role, organization_type: orgType } = user;
+    console.log('🎭 User role:', role); // ✅ Debug log
 
-    // SUPER_ADMIN menu - ADD CREATE ADMIN OPTION
+    // SUPER_ADMIN menu
     if (role === 'SUPER_ADMIN') {
+        console.log('✅ Returning SUPER_ADMIN menu');
         return [
-            ...baseItems,
+            { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
             { path: '/super-admin/organizations', label: 'Organizations', icon: 'business' },
             { path: '/super-admin/create-admin', label: 'Create Admin', icon: 'person_add' },
             { path: '/super-admin/manage-admins', label: 'Manage Admins', icon: 'admin_panel_settings' },
+            { path: '/profile', label: 'Profile', icon: 'person' },
         ];
     }
 
-    // ORG_ADMIN menu
-    if (role === 'ORG_ADMIN') {
+    // ADMIN menu (ORG_ADMIN or ADMIN role)
+    if (role === 'ORG_ADMIN' || role === 'ADMIN') {
+        console.log('✅ Returning ADMIN menu');
         const memberLabel = getTeamLabel(orgType);
         return [
-            ...baseItems,
+            { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
             { path: '/projects', label: 'Projects', icon: 'folder' },
+            { path: '/board', label: 'Board', icon: 'view_kanban' },
+            { path: '/sprints', label: 'Sprints', icon: 'rocket' },
             { path: '/team', label: memberLabel, icon: 'group' },
+            { path: '/workflow', label: 'Workflow', icon: 'settings' }, // ✅ Workflow here
             { path: '/reports', label: 'Reports', icon: 'analytics' },
+            { path: '/profile', label: 'Profile', icon: 'person' },
         ];
     }
 
-    // MANAGER menu (Company) / TEACHER menu (Institute/School)
+    // MANAGER menu
     if (role === 'MANAGER') {
+        console.log('✅ Returning MANAGER menu');
         return [
-            ...baseItems,
+            { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
             { path: '/projects', label: 'Projects', icon: 'folder' },
+            { path: '/board', label: 'Board', icon: 'view_kanban' },
             { path: '/sprints', label: 'Sprints', icon: 'rocket' },
-            { path: '/kanban', label: 'Kanban Board', icon: 'view_kanban' },
+            { path: '/workflow', label: 'Workflow', icon: 'settings' }, // ✅ Workflow here
+            { path: '/profile', label: 'Profile', icon: 'person' },
         ];
     }
 
     // MEMBER/STUDENT menu
+    console.log('✅ Returning MEMBER menu');
     return [
-        ...baseItems,
+        { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
+        { path: '/board', label: 'Board', icon: 'view_kanban' },
         { path: '/my-tasks', label: orgType === 'SCHOOL' ? 'My Assignments' : 'My Tasks', icon: 'task' },
-        { path: '/kanban', label: 'Board', icon: 'view_kanban' },
+        { path: '/profile', label: 'Profile', icon: 'person' },
     ];
 };
 
@@ -118,6 +137,7 @@ export const hasPermission = (user, requiredRole) => {
     const hierarchy = {
         'SUPER_ADMIN': 5,
         'ORG_ADMIN': 4,
+        'ADMIN': 4,
         'MANAGER': 3,
         'MEMBER': 2,
         'STUDENT': 1
@@ -133,7 +153,7 @@ export const canCreateAdmin = (user) => {
 
 // Check if user can manage organization
 export const canManageOrganization = (user) => {
-    return user?.role === 'SUPER_ADMIN' || user?.role === 'ORG_ADMIN';
+    return user?.role === 'SUPER_ADMIN' || user?.role === 'ORG_ADMIN' || user?.role === 'ADMIN';
 };
 
 // Get organization status for admin
