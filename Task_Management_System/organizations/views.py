@@ -32,13 +32,17 @@ def list_organizations(request):
     
     data = []
     for org in orgs:
+        # ✅ Count both ADMIN and ORG_ADMIN
         admins_count = OrganizationUser.objects.filter(
             organization=org,
-            role='ADMIN'
+            role__in=['ADMIN', 'ORG_ADMIN'],  # ✅ Fixed!
+            is_active=True  # ✅ Only active admins
         ).count()
         
+        # All members (including admins)
         members_count = OrganizationUser.objects.filter(
-            organization=org
+            organization=org,
+            is_active=True  # ✅ Only active members
         ).count()
         
         data.append({
@@ -50,14 +54,12 @@ def list_organizations(request):
             'phone': org.phone,
             'domain': org.domain,
             'address': org.address,
-            'admins': admins_count,
+            'admins': admins_count,  # ✅ Proper count
             'members': members_count,
             'created_at': org.created_at.isoformat() if org.created_at else None,
         })
     
     return Response(data)
-
-
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_organization_with_admin(request):
@@ -300,12 +302,20 @@ def organization_stats(request):
     active_orgs = Organization.objects.filter(is_active=True).count()
     inactive_orgs = total_orgs - active_orgs
     
-    total_admins = OrganizationUser.objects.filter(role='ADMIN').count()
-    total_members = OrganizationUser.objects.count()
+    # ✅ Count both ADMIN and ORG_ADMIN
+    total_admins = OrganizationUser.objects.filter(
+        role__in=['ADMIN', 'ORG_ADMIN'],
+        is_active=True
+    ).count()
+    
+    total_members = OrganizationUser.objects.filter(
+        is_active=True
+    ).count()
     
     # By type
     companies = Organization.objects.filter(type='COMPANY').count()
     institutes = Organization.objects.filter(type='INSTITUTE').count()
+    schools = Organization.objects.filter(type='SCHOOL').count()  # ✅ Add SCHOOL
     
     return Response({
         "total_organizations": total_orgs,
@@ -316,9 +326,9 @@ def organization_stats(request):
         "by_type": {
             "COMPANY": companies,
             "INSTITUTE": institutes,
+            "SCHOOL": schools,  # ✅ Add SCHOOL
         }
     })
-
 
 # ============================================================
 # LEGACY (Keep for backward compatibility)

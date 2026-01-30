@@ -116,52 +116,60 @@ const CreateOrganization = () => {
         setError('');
     };
 
-    const handleSubmit = async () => {
-        try {
-            setLoading(true);
-            setError('');
+const handleSubmit = async () => {
+    try {
+        setLoading(true);
+        setError('');
 
-            const token = localStorage.getItem('access_token');
-            const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+        const token = localStorage.getItem('access_token');
+        const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-            console.log('📤 Creating organization:', formData);
+        console.log('📤 Creating organization:', formData);
+        console.log('🔑 Token:', token ? 'Present' : 'Missing');  // ✅ Add this debug
 
-            const response = await fetch(`${baseURL}/api/organizations/super-admin/create/`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
+        const response = await fetch(`${baseURL}/api/organizations/super-admin/create/`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,  // ✅ Check this
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                organization: {
                     name: formData.name,
                     type: formData.type,
                     description: formData.description,
-                    admin_username: formData.admin_username,
-                    admin_email: formData.admin_email,
-                    admin_password: formData.admin_password,
-                })
-            });
+                },
+                admin: {
+                    username: formData.admin_username,
+                    email: formData.admin_email,
+                    password: formData.admin_password,
+                }
+            })
+        });
 
-            const data = await response.json();
+        const data = await response.json();
+        
+        console.log('📥 Response status:', response.status);
+        console.log('📥 Response data:', data);
 
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to create organization');
-            }
-
-            console.log('✅ Organization created:', data);
-            setSuccess('Organization created successfully!');
-
-            setTimeout(() => {
-                navigate('/super-admin/dashboard');
-            }, 2000);
-
-        } catch (err) {
-            console.error('❌ Error:', err);
-            setError(err.message || 'Failed to create organization');
-        } finally {
-            setLoading(false);
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to create organization');
         }
-    };
+
+        console.log('✅ Organization created:', data);
+        setSuccess('Organization created successfully!');
+
+        setTimeout(() => {
+            navigate('/super-admin/dashboard');
+        }, 2000);
+
+    } catch (err) {
+        console.error('❌ Error:', err);
+        setError(err.message || 'Failed to create organization');
+    } finally {
+        setLoading(false);
+    }
+};
 
     const getStepContent = (step) => {
         switch (step) {

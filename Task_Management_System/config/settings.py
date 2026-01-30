@@ -1,16 +1,16 @@
 import os
-from .env.local import *
+# from .env.local import *
 
-# ENV = os.getenv("DJANGO_ENV", "local")
+ENV = os.getenv("DJANGO_ENV", "local")
 
-# if ENV == "production":
-#     from .env.production import *
-# else:
-#     from .env.local import *
+if ENV == "production":
+    from .env.production import *
+else:
+    from .env.local import *
 
-# ENV = os.getenv("DJANGO_ENV", "local")
+ENV = os.getenv("DJANGO_ENV", "local")
 
-# if ENV == "production":
-#     from .env.production import *
-# else:
-#     from .env.local import *
+if ENV == "production":
+    from .env.production import *
+else:
+    from .env.local import *
