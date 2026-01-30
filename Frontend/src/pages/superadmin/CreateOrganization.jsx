@@ -137,13 +137,18 @@ const CreateOrganization = () => {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    name: formData.name,
-                    type: formData.type,
-                    description: formData.description,
-                    admin_username: formData.admin_username,
-                    admin_email: formData.admin_email,
-                    admin_password: formData.admin_password,
-                })
+            organization: {
+                name: formData.name,
+                type: formData.type,
+                description: formData.description,
+            },
+            admin: {
+                username: formData.admin_username,
+                email: formData.admin_email,
+                password: formData.admin_password,
+            }
+            })
+
             });
 
             const data = await response.json();
