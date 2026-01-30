@@ -87,11 +87,6 @@ const WorkflowManagement = () => {
     try {
       setLoading(true);
       
-      const workflowRes = await fetch('${import.meta.env.VITE_API_URL}/api/workflows/workflows/', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        }
-      });
       const workflows = await workflowRes.json();
       const activeWorkflow = workflows[0];
       
