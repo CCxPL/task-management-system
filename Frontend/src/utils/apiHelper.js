@@ -2,27 +2,26 @@ import { API_BASE_URL } from '../config/api';
 
 /**
  * Build API URL
- * @param {string} endpoint - API endpoint (e.g., '/api/issues/')
- * @returns {string} Full URL
  */
 export const buildApiUrl = (endpoint) => {
-    // Remove leading slash if present
     const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+    const fullEndpoint = cleanEndpoint.startsWith('api/') ? cleanEndpoint : `api/${cleanEndpoint}`;
+    const url = `${API_BASE_URL}/${fullEndpoint}`;
     
-    // Ensure /api prefix if not present
-    const fullEndpoint = cleanEndpoint.startsWith('api/') 
-        ? cleanEndpoint 
-        : `api/${cleanEndpoint}`;
-    
-    return `${API_BASE_URL}/${fullEndpoint}`;
+    console.log('🔗 Building URL:', url);
+    return url;
 };
 
 /**
  * Get auth headers
- * @returns {Object} Headers with Authorization
  */
 export const getAuthHeaders = () => {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+    
+    if (!token) {
+        console.warn('⚠️ No auth token found!');
+    }
+    
     return {
         'Content-Type': 'application/json',
         ...(token && { 'Authorization': `Bearer ${token}` })
@@ -31,8 +30,6 @@ export const getAuthHeaders = () => {
 
 /**
  * Fetch wrapper with auth
- * @param {string} endpoint 
- * @param {Object} options 
  */
 export const apiFetch = async (endpoint, options = {}) => {
     const url = buildApiUrl(endpoint);
@@ -40,22 +37,29 @@ export const apiFetch = async (endpoint, options = {}) => {
     
     console.log('📤 API Request:', options.method || 'GET', url);
     
-    const response = await fetch(url, {
-        ...options,
-        headers: {
-            ...headers,
-            ...options.headers,
+    try {
+        const response = await fetch(url, {
+            ...options,
+            headers: {
+                ...headers,
+                ...options.headers,
+            }
+        });
+        
+        console.log('📥 API Response:', response.status, url);
+        
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ 
+                error: `HTTP ${response.status}` 
+            }));
+            throw new Error(error.error || `HTTP ${response.status}`);
         }
-    });
-    
-    console.log('📥 API Response:', response.status, url);
-    
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Request failed' }));
-        throw new Error(error.error || `HTTP ${response.status}`);
+        
+        return response.json();
+    } catch (error) {
+        console.error('❌ API Error:', error);
+        throw error;
     }
-    
-    return response.json();
 };
 
 export default {
