@@ -25,7 +25,6 @@ const KanbanBoard = () => {
     const dispatch = useDispatch();
     const theme = useTheme();
     const isDarkMode = theme.palette.mode === 'dark';
-
     const { currentProject } = useSelector((state) => state.projectContext);
     const { list: issuesList, loading } = useSelector((state) => state.issues);
 
