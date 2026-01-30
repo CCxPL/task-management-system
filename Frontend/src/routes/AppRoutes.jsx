@@ -23,11 +23,11 @@ import IssueDetail from '../pages/issues/IssueDetail';
 import Reports from '../pages/reports/Reports';
 import Profile from '../pages/profile/Profile';
 import TeamManagement from '../pages/team/TeamManagement';
-import WorkflowManagement from '../pages/workflow/WorkflowManagement'; // ✅ Import
+import WorkflowManagement from '../pages/workflow/WorkflowManagement';
 
 // Super Admin
 import ManageOrganizations from '../pages/superadmin/ManageOrganizations';
-import CreateAdmin from '../pages/superadmin/CreateAdmin';
+import CreateOrganization from '../pages/superadmin/CreateOrganization';
 
 // Components
 import ProtectedRoute from '../components/common/ProtectedRoute';
@@ -51,28 +51,47 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       >
-        {/* Default Redirect */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        {/* ================= DEFAULT REDIRECT ================= */}
+        <Route 
+          path="/" 
+          element={
+            user?.role === 'SUPER_ADMIN' 
+              ? <Navigate to="/super-admin/dashboard" replace />
+              : <Navigate to="/dashboard" replace />
+          } 
+        />
 
-        {/* Dashboard - Role-based */}
+        {/* ================= DASHBOARD ROUTES ================= */}
+        {/* Super Admin Dashboard */}
+        <Route
+          path="/super-admin/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+              <SuperAdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Regular Dashboard - NOT for SUPER_ADMIN */}
         <Route
           path="/dashboard"
           element={
-            user?.role === 'SUPER_ADMIN'
-              ? <SuperAdminDashboard />
+            user?.role === 'SUPER_ADMIN' 
+              ? <Navigate to="/super-admin/dashboard" replace />
               : <Dashboard />
           }
         />
 
         {/* ================= SUPER ADMIN ROUTES ================= */}
         <Route
-          path="/super-admin/create-admin"
+          path="/super-admin/create-organization"
           element={
             <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
-              <CreateAdmin />
+              <CreateOrganization />
             </ProtectedRoute>
           }
         />
+        
         <Route
           path="/super-admin/organizations"
           element={
@@ -83,15 +102,17 @@ const AppRoutes = () => {
         />
 
         {/* ================= ADMIN/MANAGER ROUTES ================= */}
+        {/* Team Management */}
         <Route
           path="/team"
           element={
-            <ProtectedRoute allowedRoles={['ORG_ADMIN', 'ADMIN']}>
+            <ProtectedRoute allowedRoles={['ORG_ADMIN', 'ADMIN', 'MANAGER']}>
               <TeamManagement />
             </ProtectedRoute>
           }
         />
         
+        {/* Projects */}
         <Route
           path="/projects"
           element={
@@ -100,8 +121,16 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-        <Route path="/projects/:id" element={<ProjectDashboard />} />
+        <Route 
+          path="/projects/:id" 
+          element={
+            <ProtectedRoute allowedRoles={['ORG_ADMIN', 'ADMIN', 'MANAGER', 'MEMBER']}>
+              <ProjectDashboard />
+            </ProtectedRoute>
+          } 
+        />
 
+        {/* Sprints */}
         <Route
           path="/sprints"
           element={
@@ -110,9 +139,16 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-        <Route path="/sprints/:id" element={<SprintBoard />} />
+        <Route 
+          path="/sprints/:id" 
+          element={
+            <ProtectedRoute allowedRoles={['ORG_ADMIN', 'ADMIN', 'MANAGER']}>
+              <SprintBoard />
+            </ProtectedRoute>
+          } 
+        />
 
-        {/* ✅ WORKFLOW ROUTE - MOVED INSIDE PROTECTED ROUTES */}
+        {/* Workflow Management */}
         <Route
           path="/workflow"
           element={
@@ -122,11 +158,36 @@ const AppRoutes = () => {
           }
         />
 
-        {/* ================= COMMON ROUTES ================= */}
-        <Route path="/kanban" element={<KanbanBoard />} />
-        <Route path="/board" element={<KanbanBoard />} />
-        <Route path="/issues/:id" element={<IssueDetail />} />
+        {/* ================= COMMON ROUTES (ALL EXCEPT SUPER_ADMIN) ================= */}
+        {/* Kanban Board */}
+        <Route 
+          path="/kanban" 
+          element={
+            <ProtectedRoute allowedRoles={['ORG_ADMIN', 'ADMIN', 'MANAGER', 'MEMBER']}>
+              <KanbanBoard />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/board" 
+          element={
+            <ProtectedRoute allowedRoles={['ORG_ADMIN', 'ADMIN', 'MANAGER', 'MEMBER']}>
+              <KanbanBoard />
+            </ProtectedRoute>
+          } 
+        />
 
+        {/* Issue Detail */}
+        <Route 
+          path="/issues/:id" 
+          element={
+            <ProtectedRoute allowedRoles={['ORG_ADMIN', 'ADMIN', 'MANAGER', 'MEMBER']}>
+              <IssueDetail />
+            </ProtectedRoute>
+          } 
+        />
+
+        {/* Reports */}
         <Route
           path="/reports"
           element={
@@ -136,11 +197,19 @@ const AppRoutes = () => {
           }
         />
 
+        {/* Profile - Available for ALL roles */}
         <Route path="/profile" element={<Profile />} />
       </Route>
 
       {/* ================= FALLBACK ================= */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route 
+        path="*" 
+        element={
+          user?.role === 'SUPER_ADMIN' 
+            ? <Navigate to="/super-admin/dashboard" replace />
+            : <Navigate to="/dashboard" replace />
+        } 
+      />
     </Routes>
   );
 };

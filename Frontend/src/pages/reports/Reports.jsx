@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
+import { API_BASE_URL } from '../../config/api';
 import {
     Box,
     Paper,
@@ -39,21 +40,16 @@ import {
     PieChart,
     Pie,
     Cell,
-    BarChart,
-    Bar,
-    LineChart,
-    Line,
-    XAxis,
-    YAxis,
-    CartesianGrid,
     Tooltip,
-    Legend,
     ResponsiveContainer,
 } from 'recharts';
 
 const Reports = () => {
     const theme = useTheme();
     const isDarkMode = theme.palette.mode === 'dark';
+    
+    // ✅ FIX: Remove this line - await can't be used here!
+    // const report = await apiFetch(`reports/project/?project=${projectId}`);
     
     const { currentProject } = useSelector((state) => state.projectContext);
     const { list: projects } = useSelector((state) => state.projects);
@@ -79,8 +75,9 @@ const Reports = () => {
             setLoading(true);
             console.log('📥 Fetching report for project:', projectId);
             
+            // ✅ Use API_BASE_URL
             const response = await fetch(
-                `${import.meta.env.VITE_API_URL}/api/reports/project/?project=${projectId}`,
+                `${API_BASE_URL}/api/reports/project/?project=${projectId}`,
                 {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('access_token')}`
@@ -177,7 +174,7 @@ const Reports = () => {
 
     // Custom label for pie charts
     const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-        if (percent < 0.05) return null; // Hide labels for small slices
+        if (percent < 0.05) return null;
         const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
         const x = cx + radius * Math.cos(-midAngle * Math.PI / 180);
         const y = cy + radius * Math.sin(-midAngle * Math.PI / 180);
@@ -206,7 +203,9 @@ const Reports = () => {
                 display: 'flex', 
                 justifyContent: 'space-between', 
                 alignItems: 'center', 
-                mb: 4 
+                mb: 4,
+                flexWrap: 'wrap',
+                gap: 2,
             }}>
                 <Box>
                     <Typography 

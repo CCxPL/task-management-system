@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
+import { apiFetch } from '../../utils/apiHelper';
 import {
     Box,
     Paper,
@@ -45,6 +46,7 @@ const IssueDetail = () => {
     const [commentText, setCommentText] = useState('');
     const [status, setStatus] = useState('');
     const [openTimeLogModal, setOpenTimeLogModal] = useState(false);
+    
 
     useEffect(() => {
         fetchIssueDetails();

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { buildApiUrl, apiFetch, getAuthHeaders } from '../../utils/apiHelper';
 import {
   Box,
   Paper,
@@ -37,6 +38,10 @@ import {
   Settings as SettingsIcon,
 } from '@mui/icons-material';
 
+
+const workflowRes = await fetch(buildApiUrl('workflows/workflows/'), {
+    headers: getAuthHeaders()
+});
 const WorkflowManagement = () => {
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';

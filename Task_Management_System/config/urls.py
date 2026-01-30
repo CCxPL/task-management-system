@@ -3,10 +3,9 @@ from rest_framework.permissions import AllowAny
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from django.contrib import admin
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-)
+from rest_framework_simplejwt.views import TokenRefreshView
+from accounts.auth_views import custom_login  # ✅ Import from auth_views
+
 schema_view = get_schema_view(
     openapi.Info(
         title="Task Management System API",
@@ -14,10 +13,10 @@ schema_view = get_schema_view(
         description="""
 Jira-like Task & Sprint Management System
 
-• Multi-Organization
-• Role-based access
-• Custom Kanban workflows
-• Secure & scalable
+- Multi-Organization
+- Role-based access
+- Custom Kanban workflows
+- Secure & scalable
 """,
         contact=openapi.Contact(email="tech@company.com"),
     ),
@@ -25,12 +24,11 @@ Jira-like Task & Sprint Management System
     permission_classes=[AllowAny],
 )
 
-
 urlpatterns = [
     path('admin/', admin.site.urls),
 
- # 🔐 AUTH (JWT)
-    path("api/auth/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    # 🔐 AUTH (JWT)
+    path("api/auth/login/", custom_login, name="token_obtain_pair"),  # ✅ Use from auth_views
     path("api/auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 
     path('api/accounts/', include('accounts.urls')),
@@ -46,5 +44,4 @@ urlpatterns = [
 
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0)),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0)),
-
 ]

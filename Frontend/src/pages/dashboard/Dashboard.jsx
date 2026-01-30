@@ -60,7 +60,7 @@ import {
 } from '@mui/icons-material';
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
-
+import { apiFetch } from '../../utils/apiHelper';
 // Redux actions
 import { fetchProjects, createProject } from '../../app/slices/projectSlice.js';
 import { fetchIssues } from '../../app/slices/issueSlice.js';
@@ -71,7 +71,7 @@ import { setCurrentProject } from '../../app/slices/projectContextSlice.js';
 const Dashboard = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  
+
   // Redux state
   const { user } = useSelector(state => state.auth);
   const { list: projects, loading: projectsLoading } = useSelector(state => state.projects);
@@ -248,7 +248,19 @@ const [credentialsDialog, setCredentialsDialog] = useState({
     REVIEW: '#6554C0',
     DONE: '#36B37E',
   };
+// Add this at the very top of Dashboard component, right after hooks
 
+// ✅ SUPER_ADMIN ko redirect kar do apne dashboard pe
+useEffect(() => {
+  if (user?.role === 'SUPER_ADMIN') {
+    navigate('/super-admin/dashboard');
+  }
+}, [user, navigate]);
+
+// If SUPER_ADMIN somehow reaches here, show nothing
+if (isSuperAdmin) {
+  return null;
+}
   // Fetch data
   useEffect(() => {
     if (!user) return;

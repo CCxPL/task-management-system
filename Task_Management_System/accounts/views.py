@@ -25,12 +25,31 @@ def _require_org_admin_or_manager(user):
 
     return org_user
 
-
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def current_user(request):
+    """
+    Get current authenticated user with role and organization info
+    Works for both Django superusers and organization users
+    """
     user = request.user
+    
+    print(f'📥 /me endpoint called for user: {user.username}')
+    print(f'🔍 Is Django superuser: {user.is_superuser}')
+    
+    # ✅ DJANGO SUPERUSER - Return immediately
+    if user.is_superuser:
+        print(f'✅ Django Superuser detected: {user.username}')
+        return Response({
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "role": "SUPER_ADMIN",  # ✅ Hard-coded SUPER_ADMIN role
+            "is_superuser": True,
+            "organization": None
+        })
 
+    # ✅ ORGANIZATION USER - Check membership
     org_user = (
         OrganizationUser.objects
         .select_related("organization")
@@ -39,19 +58,24 @@ def current_user(request):
     )
 
     if not org_user:
+        print(f'⚠️ Regular user {user.username} not part of any organization')
         return Response({
             "id": user.id,
             "username": user.username,
             "email": user.email,
             "role": None,
+            "is_superuser": False,
             "organization": None
         })
-
+    
+    print(f'✅ Organization user: {user.username} - Role: {org_user.role}')
+    
     return Response({
         "id": user.id,
         "username": user.username,
         "email": user.email,
         "role": org_user.role,
+        "is_superuser": False,
         "organization": {
             "id": org_user.organization.id,
             "name": org_user.organization.name,
