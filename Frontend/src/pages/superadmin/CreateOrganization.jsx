@@ -121,7 +121,7 @@ const CreateOrganization = () => {
             setLoading(true);
             setError('');
 
-            const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+            const token = localStorage.getItem('access_token');
             
             console.log('🔧 API Base URL:', API_BASE_URL);
             console.log('🔑 Token:', token ? 'Present' : 'Missing');
