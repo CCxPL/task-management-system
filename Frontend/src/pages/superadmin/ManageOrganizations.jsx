@@ -53,14 +53,6 @@ const ManageOrganizations = () => {
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
 
-    // Mock organizations data
-    const [organizations, setOrganizations] = useState([
-        { id: 1, name: 'Acme Corporation', type: 'COMPANY', status: 'ACTIVE', admins: 2, members: 45 },
-        { id: 2, name: 'Tech University', type: 'INSTITUTE', status: 'ACTIVE', admins: 1, members: 120 },
-        { id: 3, name: 'Green Valley School', type: 'SCHOOL', status: 'ACTIVE', admins: 1, members: 80 },
-        { id: 4, name: 'Startup XYZ', type: 'COMPANY', status: 'INACTIVE', admins: 1, members: 12 },
-    ]);
-
     // RESPONSIVE STYLES
     const styles = {
         container: {
