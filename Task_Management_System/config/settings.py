@@ -1,5 +1,4 @@
 import os
-# from .env.local import *
 
 ENV = os.getenv("DJANGO_ENV", "local")
 

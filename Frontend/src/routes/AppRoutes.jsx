@@ -26,8 +26,10 @@ import TeamManagement from '../pages/team/TeamManagement';
 import WorkflowManagement from '../pages/workflow/WorkflowManagement';
 
 // Super Admin
-import ManageOrganizations from '../pages/superadmin/ManageOrganizations';
+import CreateAdmin from '../pages/superadmin/CreateAdmin';
+import Organizations from '../pages/superadmin/Organizations';
 import CreateOrganization from '../pages/superadmin/CreateOrganization';
+import EditOrganization from '../pages/superadmin/EditOrganization';
 
 // Components
 import ProtectedRoute from '../components/common/ProtectedRoute';
@@ -51,18 +53,17 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       >
-        {/* ================= DEFAULT REDIRECT ================= */}
-        <Route 
-          path="/" 
+        {/* Default Redirect */}
+        <Route
+          path="/"
           element={
-            user?.role === 'SUPER_ADMIN' 
+            user?.role === 'SUPER_ADMIN'
               ? <Navigate to="/super-admin/dashboard" replace />
               : <Navigate to="/dashboard" replace />
-          } 
+          }
         />
 
         {/* ================= DASHBOARD ROUTES ================= */}
-        {/* Super Admin Dashboard */}
         <Route
           path="/super-admin/dashboard"
           element={
@@ -72,17 +73,25 @@ const AppRoutes = () => {
           }
         />
 
-        {/* Regular Dashboard - NOT for SUPER_ADMIN */}
         <Route
           path="/dashboard"
           element={
-            user?.role === 'SUPER_ADMIN' 
+            user?.role === 'SUPER_ADMIN'
               ? <Navigate to="/super-admin/dashboard" replace />
               : <Dashboard />
           }
         />
 
         {/* ================= SUPER ADMIN ROUTES ================= */}
+        <Route
+          path="/super-admin/organizations"
+          element={
+            <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+              <Organizations />
+            </ProtectedRoute>
+          }
+        />
+
         <Route
           path="/super-admin/create-organization"
           element={
@@ -91,28 +100,35 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-        
+
         <Route
-          path="/super-admin/organizations"
+          path="/super-admin/organizations/:id/edit"
           element={
             <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
-              <ManageOrganizations />
+              <EditOrganization />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/super-admin/create-admin"
+          element={
+            <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+              <CreateAdmin />
             </ProtectedRoute>
           }
         />
 
         {/* ================= ADMIN/MANAGER ROUTES ================= */}
-        {/* Team Management */}
         <Route
           path="/team"
           element={
-            <ProtectedRoute allowedRoles={['ORG_ADMIN', 'ADMIN', 'MANAGER']}>
+            <ProtectedRoute allowedRoles={['ORG_ADMIN', 'ADMIN']}>
               <TeamManagement />
             </ProtectedRoute>
           }
         />
-        
-        {/* Projects */}
+
         <Route
           path="/projects"
           element={
@@ -121,16 +137,8 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-        <Route 
-          path="/projects/:id" 
-          element={
-            <ProtectedRoute allowedRoles={['ORG_ADMIN', 'ADMIN', 'MANAGER', 'MEMBER']}>
-              <ProjectDashboard />
-            </ProtectedRoute>
-          } 
-        />
+        <Route path="/projects/:id" element={<ProjectDashboard />} />
 
-        {/* Sprints */}
         <Route
           path="/sprints"
           element={
@@ -139,16 +147,8 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-        <Route 
-          path="/sprints/:id" 
-          element={
-            <ProtectedRoute allowedRoles={['ORG_ADMIN', 'ADMIN', 'MANAGER']}>
-              <SprintBoard />
-            </ProtectedRoute>
-          } 
-        />
+        <Route path="/sprints/:id" element={<SprintBoard />} />
 
-        {/* Workflow Management */}
         <Route
           path="/workflow"
           element={
@@ -158,36 +158,11 @@ const AppRoutes = () => {
           }
         />
 
-        {/* ================= COMMON ROUTES (ALL EXCEPT SUPER_ADMIN) ================= */}
-        {/* Kanban Board */}
-        <Route 
-          path="/kanban" 
-          element={
-            <ProtectedRoute allowedRoles={['ORG_ADMIN', 'ADMIN', 'MANAGER', 'MEMBER']}>
-              <KanbanBoard />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/board" 
-          element={
-            <ProtectedRoute allowedRoles={['ORG_ADMIN', 'ADMIN', 'MANAGER', 'MEMBER']}>
-              <KanbanBoard />
-            </ProtectedRoute>
-          } 
-        />
+        {/* ================= COMMON ROUTES ================= */}
+        <Route path="/kanban" element={<KanbanBoard />} />
+        <Route path="/board" element={<KanbanBoard />} />
+        <Route path="/issues/:id" element={<IssueDetail />} />
 
-        {/* Issue Detail */}
-        <Route 
-          path="/issues/:id" 
-          element={
-            <ProtectedRoute allowedRoles={['ORG_ADMIN', 'ADMIN', 'MANAGER', 'MEMBER']}>
-              <IssueDetail />
-            </ProtectedRoute>
-          } 
-        />
-
-        {/* Reports */}
         <Route
           path="/reports"
           element={
@@ -197,18 +172,17 @@ const AppRoutes = () => {
           }
         />
 
-        {/* Profile - Available for ALL roles */}
         <Route path="/profile" element={<Profile />} />
       </Route>
 
       {/* ================= FALLBACK ================= */}
-      <Route 
-        path="*" 
+      <Route
+        path="*"
         element={
-          user?.role === 'SUPER_ADMIN' 
+          user?.role === 'SUPER_ADMIN'
             ? <Navigate to="/super-admin/dashboard" replace />
             : <Navigate to="/dashboard" replace />
-        } 
+        }
       />
     </Routes>
   );

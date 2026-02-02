@@ -77,7 +77,8 @@ const SuperAdminDashboard = () => {
             setError('');
 
             const token = localStorage.getItem('access_token');
-            const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+            const baseURL = import.meta.env.VITE_API_URL;
+
 
             // Fetch stats
             const statsRes = await fetch(`${baseURL}/api/organizations/super-admin/stats/`, {

@@ -68,7 +68,7 @@ export const getWelcomeTitle = (user) => {
 
 // Get menu items based on role
 export const getMenuItems = (user) => {
-    console.log('🔍 getMenuItems called with user:', user); // ✅ Debug log
+    console.log('🔍 getMenuItems called with user:', user);
     
     if (!user) {
         console.log('❌ No user found!');
@@ -78,23 +78,24 @@ export const getMenuItems = (user) => {
         ];
     }
 
-    const { role, organization_type: orgType } = user;
-    console.log('🎭 User role:', role); // ✅ Debug log
+    // ✅ FIXED: Extract role and orgType first
+    const userRole = user.role;
+    const orgType = user.organization_type;
+    
+    console.log('🎭 User role:', userRole);
 
-    // SUPER_ADMIN menu
-    if (role === 'SUPER_ADMIN') {
+    // ✅ SUPER_ADMIN menu - FINAL FIX
+    if (userRole === 'SUPER_ADMIN') {
         console.log('✅ Returning SUPER_ADMIN menu');
         return [
-            { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
+            { path: '/super-admin/dashboard', label: 'Dashboard', icon: 'dashboard' },
             { path: '/super-admin/organizations', label: 'Organizations', icon: 'business' },
-            { path: '/super-admin/create-admin', label: 'Create Admin', icon: 'person_add' },
-            { path: '/super-admin/manage-admins', label: 'Manage Admins', icon: 'admin_panel_settings' },
             { path: '/profile', label: 'Profile', icon: 'person' },
         ];
     }
 
-    // ADMIN menu (ORG_ADMIN or ADMIN role)
-    if (role === 'ORG_ADMIN' || role === 'ADMIN') {
+    // ✅ ADMIN menu (ORG_ADMIN or ADMIN role)
+    if (userRole === 'ORG_ADMIN' || userRole === 'ADMIN') {
         console.log('✅ Returning ADMIN menu');
         const memberLabel = getTeamLabel(orgType);
         return [
@@ -103,26 +104,26 @@ export const getMenuItems = (user) => {
             { path: '/board', label: 'Board', icon: 'view_kanban' },
             { path: '/sprints', label: 'Sprints', icon: 'rocket' },
             { path: '/team', label: memberLabel, icon: 'group' },
-            { path: '/workflow', label: 'Workflow', icon: 'settings' }, // ✅ Workflow here
+            { path: '/workflow', label: 'Workflow', icon: 'settings' },
             { path: '/reports', label: 'Reports', icon: 'analytics' },
             { path: '/profile', label: 'Profile', icon: 'person' },
         ];
     }
 
-    // MANAGER menu
-    if (role === 'MANAGER') {
+    // ✅ MANAGER menu
+    if (userRole === 'MANAGER') {
         console.log('✅ Returning MANAGER menu');
         return [
             { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
             { path: '/projects', label: 'Projects', icon: 'folder' },
             { path: '/board', label: 'Board', icon: 'view_kanban' },
             { path: '/sprints', label: 'Sprints', icon: 'rocket' },
-            { path: '/workflow', label: 'Workflow', icon: 'settings' }, // ✅ Workflow here
+            { path: '/workflow', label: 'Workflow', icon: 'settings' },
             { path: '/profile', label: 'Profile', icon: 'person' },
         ];
     }
 
-    // MEMBER/STUDENT menu
+    // ✅ MEMBER/STUDENT menu
     console.log('✅ Returning MEMBER menu');
     return [
         { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
