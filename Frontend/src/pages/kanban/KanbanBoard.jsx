@@ -91,58 +91,69 @@ const KanbanBoard = () => {
     }, [currentProject?.id]);
 
     const loadKanbanBoard = async () => {
-        try {
-            setLoadingWorkflow(true);
-            
-            console.log('📥 Fetching workflow and issues...');
-            
-            const token = localStorage.getItem('access_token') || localStorage.getItem('token');
-            
-            // Fetch workflow
-            const workflowRes = await fetch('${import.meta.env.VITE_API_URL}/api/workflows/workflows/', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const workflows = await workflowRes.json();
-            const activeWorkflow = workflows[0];
-            
-            if (!activeWorkflow) {
-                showNotification('No workflow found. Please configure workflow first.', 'error');
-                setLoadingWorkflow(false);
-                return;
-            }
+    try {
+        setLoadingWorkflow(true);
+        
+        console.log('📥 Fetching workflow and issues...');
+        
+        const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+        const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+        
+        // ✅ FIX: Use backticks instead of single quotes
+        const workflowRes = await fetch(`${baseURL}/api/workflows/workflows/`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
 
-            // Fetch statuses
-            const statusRes = await fetch(
-                `${import.meta.env.VITE_API_URL}/api/workflows/workflows/${activeWorkflow.id}/statuses/list/`,
-                { headers: { 'Authorization': `Bearer ${token}` } }
-            );
-            const statuses = await statusRes.json();
-            
-            const sortedStatuses = statuses.sort((a, b) => a.order - b.order);
-            
-            const columns = sortedStatuses.map(status => ({
-                id: status.id,
-                name: status.name,
-                slug: status.slug,
-                frontendKey: status.slug.toUpperCase().replace(/-/g, '_'),
-                color: status.color || '#0052CC',
-                order: status.order,
-            }));
-            
-            setWorkflowColumns(columns);
-            
-            // Fetch issues
-            await dispatch(fetchIssues(currentProject.id)).unwrap();
-            
-            console.log('✅ Kanban board loaded');
-            
-        } catch (error) {
-            console.error('❌ Failed to load kanban board:', error);
-            showNotification('Failed to load kanban board', 'error');
-        } finally {
-            setLoadingWorkflow(false);
+        if (!workflowRes.ok) {
+            throw new Error(`Failed to fetch workflow: ${workflowRes.status}`);
         }
-    };
+
+        const workflows = await workflowRes.json();
+        const activeWorkflow = workflows[0];
+        
+        if (!activeWorkflow) {
+            showNotification('No workflow found. Please configure workflow first.', 'error');
+            setLoadingWorkflow(false);
+            return;
+        }
+
+        // Fetch statuses
+        const statusRes = await fetch(
+            `${baseURL}/api/workflows/workflows/${activeWorkflow.id}/statuses/list/`,
+            { headers: { 'Authorization': `Bearer ${token}` } }
+        );
+
+        if (!statusRes.ok) {
+            throw new Error(`Failed to fetch statuses: ${statusRes.status}`);
+        }
+
+        const statuses = await statusRes.json();
+        
+        const sortedStatuses = statuses.sort((a, b) => a.order - b.order);
+        
+        const columns = sortedStatuses.map(status => ({
+            id: status.id,
+            name: status.name,
+            slug: status.slug,
+            frontendKey: status.slug.toUpperCase().replace(/-/g, '_'),
+            color: status.color || '#0052CC',
+            order: status.order,
+        }));
+        
+        setWorkflowColumns(columns);
+        
+        // Fetch issues
+        await dispatch(fetchIssues(currentProject.id)).unwrap();
+        
+        console.log('✅ Kanban board loaded');
+        
+    } catch (error) {
+        console.error('❌ Failed to load kanban board:', error);
+        showNotification('Failed to load kanban board', 'error');
+    } finally {
+        setLoadingWorkflow(false);
+    }
+};
 
     const handleDragStart = () => {
         setIsDragging(true);

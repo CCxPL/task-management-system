@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
-import { buildApiUrl, apiFetch, getAuthHeaders } from '../../utils/apiHelper';
 import {
   Box,
   Paper,
@@ -47,6 +46,7 @@ const WorkflowManagement = () => {
   const [statuses, setStatuses] = useState([]);
   const [transitions, setTransitions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   // Modals
   const [openAddStatus, setOpenAddStatus] = useState(false);
@@ -78,45 +78,71 @@ const WorkflowManagement = () => {
     '#10B981', '#EF4444', '#EC4899', '#06B6D4',
   ];
 
-  // Fetch workflow
+  // ✅ FIXED: Fetch workflow
   const fetchWorkflow = async () => {
     try {
       setLoading(true);
+      setError('');
       
+      const token = localStorage.getItem('access_token');
+      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      
+      // ✅ FIX: Define workflowRes variable
+      const workflowRes = await fetch(`${baseURL}/api/workflows/workflows/`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!workflowRes.ok) {
+        throw new Error('Failed to fetch workflows');
+      }
+
       const workflows = await workflowRes.json();
       const activeWorkflow = workflows[0];
       
       if (!activeWorkflow) {
-        showSnack('No workflow found. Please create one.', 'error');
+        showSnack('No workflow found. Please create one.', 'warning');
         setLoading(false);
         return;
       }
 
       setWorkflow(activeWorkflow);
 
+      // Fetch statuses
       const statusRes = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/workflows/workflows/${activeWorkflow.id}/statuses/list/`,
-        { headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` } }
+        `${baseURL}/api/workflows/workflows/${activeWorkflow.id}/statuses/list/`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
       );
+
+      if (!statusRes.ok) {
+        throw new Error('Failed to fetch statuses');
+      }
+
       const statusData = await statusRes.json();
       
       // Sort by order
       const sortedStatuses = statusData.sort((a, b) => a.order - b.order);
       setStatuses(sortedStatuses);
 
+      // Fetch transitions
       const transRes = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/workflows/workflows/${activeWorkflow.id}/transitions/list/`,
-        { headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` } }
+        `${baseURL}/api/workflows/workflows/${activeWorkflow.id}/transitions/list/`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
       );
+
+      if (!transRes.ok) {
+        throw new Error('Failed to fetch transitions');
+      }
+
       const transData = await transRes.json();
       setTransitions(transData);
 
       console.log('✅ Workflow loaded:', activeWorkflow.name);
       
-      setLoading(false);
     } catch (error) {
       console.error('❌ Failed to fetch workflow:', error);
+      setError(error.message);
       showSnack('Failed to load workflow', 'error');
+    } finally {
       setLoading(false);
     }
   };
@@ -162,18 +188,17 @@ const WorkflowManagement = () => {
 
     try {
       console.log('🔄 Reordering columns...');
-      console.log('📋 New order:', updatedItems.map(i => `${i.name} (${i.order})`));
       
-      // Create array of IDs in new order
       const orderArray = updatedItems.map(item => item.id);
-      console.log('📤 Sending to backend:', orderArray);
+      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const token = localStorage.getItem('access_token');
       
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/workflows/workflows/${workflow.id}/statuses/reorder/`,
+        `${baseURL}/api/workflows/workflows/${workflow.id}/statuses/reorder/`,
         {
           method: 'PATCH',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({ order: orderArray })
@@ -182,13 +207,10 @@ const WorkflowManagement = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('❌ Backend error:', errorData);
         throw new Error(errorData.error || 'Failed to reorder statuses');
       }
 
       const data = await response.json();
-      console.log('✅ Backend response:', data);
-      
       showSnack(data.message || 'Column order updated successfully!');
       
       // Refresh to sync with backend
@@ -205,13 +227,21 @@ const WorkflowManagement = () => {
 
   // Add Status
   const handleAddStatus = async () => {
+    if (!workflow) {
+      showSnack('No workflow found', 'error');
+      return;
+    }
+
     try {
+      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const token = localStorage.getItem('access_token');
+
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/workflows/workflows/${workflow.id}/statuses/`,
+        `${baseURL}/api/workflows/workflows/${workflow.id}/statuses/`,
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -239,12 +269,15 @@ const WorkflowManagement = () => {
   // Edit Status
   const handleEditStatus = async () => {
     try {
+      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const token = localStorage.getItem('access_token');
+
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/workflows/workflows/${workflow.id}/statuses/${editingStatus.id}/`,
+        `${baseURL}/api/workflows/workflows/${workflow.id}/statuses/${editingStatus.id}/`,
         {
           method: 'PATCH',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -273,11 +306,14 @@ const WorkflowManagement = () => {
     if (!window.confirm('Are you sure you want to delete this status?')) return;
 
     try {
+      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const token = localStorage.getItem('access_token');
+
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/workflows/workflows/${workflow.id}/statuses/${statusId}/delete/`,
+        `${baseURL}/api/workflows/workflows/${workflow.id}/statuses/${statusId}/delete/`,
         {
           method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
+          headers: { 'Authorization': `Bearer ${token}` }
         }
       );
 
@@ -297,12 +333,15 @@ const WorkflowManagement = () => {
   // Add Transition
   const handleAddTransition = async () => {
     try {
+      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const token = localStorage.getItem('access_token');
+
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/workflows/workflows/${workflow.id}/transitions/`,
+        `${baseURL}/api/workflows/workflows/${workflow.id}/transitions/`,
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -329,11 +368,14 @@ const WorkflowManagement = () => {
     if (!window.confirm('Delete this transition?')) return;
 
     try {
+      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const token = localStorage.getItem('access_token');
+
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/workflows/workflows/${workflow.id}/transitions/${transitionId}/delete/`,
+        `${baseURL}/api/workflows/workflows/${workflow.id}/transitions/${transitionId}/delete/`,
         {
           method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
+          headers: { 'Authorization': `Bearer ${token}` }
         }
       );
 
@@ -352,11 +394,14 @@ const WorkflowManagement = () => {
     if (!window.confirm('Create transitions between ALL statuses?')) return;
 
     try {
+      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const token = localStorage.getItem('access_token');
+
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/workflows/workflows/${workflow.id}/transitions/auto-create/`,
+        `${baseURL}/api/workflows/workflows/${workflow.id}/transitions/auto-create/`,
         {
           method: 'POST',
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
+          headers: { 'Authorization': `Bearer ${token}` }
         }
       );
 
@@ -373,6 +418,29 @@ const WorkflowManagement = () => {
     return (
       <Box sx={{ p: 3, textAlign: 'center' }}>
         <Typography>Loading workflow...</Typography>
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+        <Button variant="contained" onClick={fetchWorkflow}>
+          Retry
+        </Button>
+      </Box>
+    );
+  }
+
+  if (!workflow) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          No workflow found. Please contact administrator to create a workflow.
+        </Alert>
       </Box>
     );
   }

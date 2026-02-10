@@ -29,6 +29,7 @@ import WorkflowManagement from '../pages/workflow/WorkflowManagement';
 import CreateAdmin from '../pages/superadmin/CreateAdmin';
 import Organizations from '../pages/superadmin/Organizations';
 import CreateOrganization from '../pages/superadmin/CreateOrganization';
+import OrganizationDetails from '../pages/superadmin/OrganizationDetails';  // ✅ ADD THIS
 import EditOrganization from '../pages/superadmin/EditOrganization';
 
 // Components
@@ -97,6 +98,16 @@ const AppRoutes = () => {
           element={
             <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
               <CreateOrganization />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ✅ ADD THIS NEW ROUTE */}
+        <Route
+          path="/super-admin/organizations/:id"
+          element={
+            <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+              <OrganizationDetails />
             </ProtectedRoute>
           }
         />

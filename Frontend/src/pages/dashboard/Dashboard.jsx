@@ -51,8 +51,8 @@ import {
   ChevronRight as ChevronRightIcon,
   Description as DescriptionIcon,
   CalendarToday as CalendarIcon,
-  CheckCircle as CheckCircleIcon,      // ✅ ADD THIS
-  ContentCopy as ContentCopyIcon,      // ✅ ADD THIS
+  CheckCircle as CheckCircleIcon,
+  ContentCopy as ContentCopyIcon,
   Assignment as AssignmentIcon,
   Schedule as ScheduleIcon,
   Settings as SettingsIcon,
@@ -60,7 +60,7 @@ import {
 } from '@mui/icons-material';
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
-import { apiFetch } from '../../utils/apiHelper';
+
 // Redux actions
 import { fetchProjects, createProject } from '../../app/slices/projectSlice.js';
 import { fetchIssues } from '../../app/slices/issueSlice.js';
@@ -106,19 +106,20 @@ const Dashboard = () => {
     end_date: '',
   });
 
-// Update state to include password
-const [memberForm, setMemberForm] = useState({
-  name: '',
-  email: '',
-  role: 'MEMBER',
-  password: '',  // ✅ ADD THIS
-});
-const [credentialsDialog, setCredentialsDialog] = useState({
-  open: false,
-  email: '',
-  password: '',
-  name: ''
-});
+  const [memberForm, setMemberForm] = useState({
+    name: '',
+    email: '',
+    role: 'MEMBER',
+    password: '',
+  });
+
+  const [credentialsDialog, setCredentialsDialog] = useState({
+    open: false,
+    email: '',
+    password: '',
+    name: ''
+  });
+
   const [snackOpen, setSnackOpen] = useState(false);
   const [snackMsg, setSnackMsg] = useState('');
 
@@ -126,17 +127,44 @@ const [credentialsDialog, setCredentialsDialog] = useState({
   const orgId = user?.organization?.id || null;
   const defaultProjectId = currentProject?.id || projects?.[0]?.id || null;
   const loadingAny = projectsLoading || issuesLoading || teamLoading || sprintsLoading;
+const getDefaultRole = () => {
+  const orgType = user?.organization?.type || 'COMPANY';
+  
+  if (orgType === 'INSTITUTE' || orgType === 'SCHOOL') {
+    return 'STUDENT';  // Default for educational orgs
+  }
+  
+  return 'MEMBER';  // Default for companies
+};
+  // ✅ Dynamic roles based on organization type
+  const getRoleOptions = () => {
+    const orgType = user?.organization?.type || 'COMPANY';
+    
+    if (orgType === 'INSTITUTE' || orgType === 'SCHOOL') {
+      return [
+        { value: 'ADMIN', label: 'Admin' },
+        { value: 'MENTOR', label: 'Mentor' },
+        { value: 'STUDENT', label: 'Student' },
+      ];
+    }
+    
+    return [
+      { value: 'ADMIN', label: 'Admin' },
+      { value: 'MANAGER', label: 'Manager' },
+      { value: 'MEMBER', label: 'Member' },
+    ];
+  };
+
+  const roleOptions = getRoleOptions();
 
   // ✅ Computed data - Role-based filtering
   const myProjects = useMemo(() => {
     if (!projects) return [];
     
-    if (isAdmin) return projects; // Admin sees all
+    if (isAdmin) return projects;
     
     if (isManager || isMember) {
-      // Filter projects where user is assigned
-      // TODO: This needs backend support to return user's assigned projects
-      return projects; // For now, show all (will be filtered by backend)
+      return projects;
     }
     
     return [];
@@ -145,9 +173,8 @@ const [credentialsDialog, setCredentialsDialog] = useState({
   const myIssues = useMemo(() => {
     if (!issues) return [];
     
-    if (isAdmin) return issues; // Admin sees all
+    if (isAdmin) return issues;
     
-    // Members and Managers see only their assigned issues
     return issues.filter(issue => 
       issue.assignee?.id === user?.id || 
       issue.assignee === user?.id
@@ -185,7 +212,6 @@ const [credentialsDialog, setCredentialsDialog] = useState({
     ) || [];
   }, [issues, myIssues, isAdmin]);
 
-  // ✅ Task distribution (for all roles)
   const taskDistribution = useMemo(() => {
     const relevantIssues = isAdmin ? issues : myIssues;
     
@@ -224,7 +250,6 @@ const [credentialsDialog, setCredentialsDialog] = useState({
     ];
   }, [issues, myIssues, isAdmin]);
 
-  // ✅ Issue type breakdown
   const issueTypeData = useMemo(() => {
     const relevantIssues = isAdmin ? issues : myIssues;
     
@@ -248,19 +273,18 @@ const [credentialsDialog, setCredentialsDialog] = useState({
     REVIEW: '#6554C0',
     DONE: '#36B37E',
   };
-// Add this at the very top of Dashboard component, right after hooks
 
-// ✅ SUPER_ADMIN ko redirect kar do apne dashboard pe
-useEffect(() => {
-  if (user?.role === 'SUPER_ADMIN') {
-    navigate('/super-admin/dashboard');
+  // ✅ SUPER_ADMIN redirect
+  useEffect(() => {
+    if (user?.role === 'SUPER_ADMIN') {
+      navigate('/super-admin/dashboard');
+    }
+  }, [user, navigate]);
+
+  if (isSuperAdmin) {
+    return null;
   }
-}, [user, navigate]);
 
-// If SUPER_ADMIN somehow reaches here, show nothing
-if (isSuperAdmin) {
-  return null;
-}
   // Fetch data
   useEffect(() => {
     if (!user) return;
@@ -344,53 +368,53 @@ if (isSuperAdmin) {
   };
 
   const handleCreateMember = async () => {
-  try {
-    console.log('📝 Creating member:', memberForm);
-    
-    const response = await fetch('${import.meta.env.VITE_API_URL}/api/accounts/create-org-user/', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        email: memberForm.email,
-        username: memberForm.name.toLowerCase().replace(/\s+/g, '_'),
-        role: memberForm.role,
-        password: memberForm.password  // ✅ Include password
-      })
-    });
-
-    const data = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(data.error || 'Failed to create member');
-    }
-
-    console.log('✅ Member created:', data);
-
-    // ✅ Show credentials in dialog
-    if (data.credentials) {
-      setCredentialsDialog({
-        open: true,
-        email: data.credentials.email,
-        password: data.credentials.password,
-        name: memberForm.name
+    try {
+      console.log('📝 Creating member:', memberForm);
+      
+      // ✅ FIXED: Template literal with backticks
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/accounts/create-org-user/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: memberForm.email,
+          username: memberForm.name.toLowerCase().replace(/\s+/g, '_'),
+          role: memberForm.role,
+          password: memberForm.password
+        })
       });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create member');
+      }
+
+      console.log('✅ Member created:', data);
+
+      if (data.credentials) {
+        setCredentialsDialog({
+          open: true,
+          email: data.credentials.email,
+          password: data.credentials.password,
+          name: memberForm.name
+        });
+      }
+      
+      setOpenMemberModal(false);
+      setMemberForm({ name: '', email: '', role: 'MEMBER', password: '' });
+      
+      dispatch(fetchTeamMembers());
+      
+    } catch (err) {
+      console.error('❌ Failed to create member:', err);
+      setSnackMsg(`❌ ${err.message || 'Failed to add member'}`);
+      setSnackOpen(true);
     }
-    
-    setOpenMemberModal(false);
-    setMemberForm({ name: '', email: '', role: 'MEMBER', password: '' });
-    
-    // Refresh team members list
-    dispatch(fetchTeamMembers());
-    
-  } catch (err) {
-    console.error('❌ Failed to create member:', err);
-    setSnackMsg(`❌ ${err.message || 'Failed to add member'}`);
-    setSnackOpen(true);
-  }
-};
+  };
+
   const handleRefresh = () => {
     console.log('🔄 Refreshing dashboard data...');
     dispatch(fetchProjects());
@@ -449,20 +473,18 @@ if (isSuperAdmin) {
         </Alert>
       </Snackbar>
 
-      {/* ✅ Header - Dynamic based on role */}
+      {/* Header */}
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
         <Box>
           <Typography variant="h4" fontWeight="500" sx={{ mb: 0.5, color: isDarkMode ? '#B6C2CF' : '#172B4D' }}>
             {isAdmin && '🔧 Admin Dashboard'}
             {isManager && '📊 Manager Dashboard'}
             {isMember && '👤 My Dashboard'}
-            {isSuperAdmin && '⚙️ Super Admin Dashboard'}
           </Typography>
           <Typography variant="body2" color="textSecondary">
             {isAdmin && `Managing ${myProjects.length} project${myProjects.length !== 1 ? 's' : ''} • ${teamMembers?.length || 0} team member${teamMembers?.length !== 1 ? 's' : ''}`}
             {isManager && `${myProjects.length} assigned project${myProjects.length !== 1 ? 's' : ''} • ${myIssues.length} task${myIssues.length !== 1 ? 's' : ''}`}
             {isMember && `${myProjects.length} project${myProjects.length !== 1 ? 's' : ''} • ${myIssues.length} assigned task${myIssues.length !== 1 ? 's' : ''}`}
-            {isSuperAdmin && 'System Administration'}
           </Typography>
         </Box>
         
@@ -485,7 +507,7 @@ if (isSuperAdmin) {
 
       {loadingAny && <LinearProgress sx={{ mb: 2, borderRadius: '3px' }} />}
 
-      {/* ✅ Stats Cards - Role-based */}
+      {/* Stats Cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         {/* Projects Card */}
         <Grid item xs={12} sm={6} md={3}>
@@ -560,7 +582,7 @@ if (isSuperAdmin) {
           </Grid>
         )}
 
-        {/* Sprints Card - Only for Admin/Manager */}
+        {/* Sprints Card */}
         {(isAdmin || isManager) && (
           <Grid item xs={12} sm={6} md={3}>
             <MuiTooltip title="Click to view sprints" arrow>
@@ -628,9 +650,9 @@ if (isSuperAdmin) {
         </Grid>
       </Grid>
 
-      {/* ✅ Quick Actions & Charts */}
+      {/* Quick Actions & Charts */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        {/* Quick Actions - Role-based */}
+        {/* Quick Actions */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3, height: '100%', borderRadius: '3px', border: `1px solid ${isDarkMode ? '#3D444D' : '#DFE1E6'}` }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -649,7 +671,7 @@ if (isSuperAdmin) {
             </Box>
 
             <Grid container spacing={2}>
-              {/* Admin-specific actions */}
+              {/* Admin actions */}
               {isAdmin && (
                 <>
                   <Grid item xs={12} sm={6}>
@@ -693,7 +715,7 @@ if (isSuperAdmin) {
                 </>
               )}
 
-              {/* Manager-specific actions */}
+              {/* Manager actions */}
               {isManager && (
                 <>
                   <Grid item xs={12} sm={6}>
@@ -718,8 +740,8 @@ if (isSuperAdmin) {
                     <Button
                       fullWidth
                       variant="outlined"
-                      startIcon={<AssignmentIcon />}
-                      onClick={() => setOpenProjectModal(true)} // TODO: Open task creation modal
+                      startIcon={<KanbanIcon />}
+                      onClick={() => navigate('/kanban')}
                       sx={{ 
                         py: 1.5,
                         textTransform: 'none',
@@ -729,13 +751,13 @@ if (isSuperAdmin) {
                         '&:hover': { borderColor: '#FF991F', bgcolor: 'rgba(255, 153, 31, 0.04)' }
                       }}
                     >
-                      Assign Task
+                      View Board
                     </Button>
                   </Grid>
                 </>
               )}
 
-              {/* Member-specific actions */}
+              {/* Member actions */}
               {isMember && (
                 <>
                   <Grid item xs={12} sm={6}>
@@ -760,8 +782,8 @@ if (isSuperAdmin) {
                     <Button
                       fullWidth
                       variant="outlined"
-                      startIcon={<ScheduleIcon />}
-                      onClick={() => navigate('/my-schedule')}
+                      startIcon={<KanbanIcon />}
+                      onClick={() => navigate('/kanban')}
                       sx={{ 
                         py: 1.5,
                         textTransform: 'none',
@@ -771,13 +793,13 @@ if (isSuperAdmin) {
                         '&:hover': { borderColor: '#6554C0', bgcolor: 'rgba(101, 84, 192, 0.04)' }
                       }}
                     >
-                      My Schedule
+                      View Board
                     </Button>
                   </Grid>
                 </>
               )}
 
-              {/* Common actions for all roles */}
+              {/* Common actions */}
               <Grid item xs={12} sm={6}>
                 <Button
                   fullWidth
@@ -819,7 +841,6 @@ if (isSuperAdmin) {
 
             <Divider sx={{ my: 2 }} />
 
-            {/* Role-based status info */}
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                 <DotIcon sx={{ fontSize: 10, color: '#0052CC' }} />
@@ -893,7 +914,7 @@ if (isSuperAdmin) {
         </Grid>
       </Grid>
 
-      {/* ✅ Recent Activity & Team Info */}
+      {/* Recent Activity & Team Info */}
       <Grid container spacing={2}>
         {/* Recent Issues */}
         <Grid item xs={12} md={8}>
@@ -1207,7 +1228,7 @@ if (isSuperAdmin) {
                 
                 <Typography variant="body2" sx={{ color: isDarkMode ? '#9FADBC' : '#6B778C', mb: 1 }}>
                   Key: <strong>{project.key}</strong>
-                  </Typography>
+                </Typography>
                 
                 {project.description && (
                   <Typography variant="body2" sx={{ color: isDarkMode ? '#9FADBC' : '#6B778C', mb: 1 }}>
@@ -1482,148 +1503,149 @@ if (isSuperAdmin) {
         </DialogActions>
       </Dialog>
 
-     {/* Add Member Modal */}
-<Dialog 
-  open={openMemberModal} 
-  onClose={() => setOpenMemberModal(false)} 
-  maxWidth="sm" 
-  fullWidth
-  PaperProps={{
-    sx: {
-      borderRadius: '3px',
-      bgcolor: isDarkMode ? '#22272B' : '#FFFFFF'
-    }
-  }}
->
-  <DialogTitle sx={{ borderBottom: `1px solid ${isDarkMode ? '#3D444D' : '#EBECF0'}` }}>
-    <Box display="flex" justifyContent="space-between" alignItems="center">
-      <Typography variant="h6" fontWeight="500" sx={{ color: isDarkMode ? '#B6C2CF' : '#172B4D' }}>
-        Add Team Member
-      </Typography>
-      <IconButton 
-        onClick={() => setOpenMemberModal(false)} 
-        size="small"
-        sx={{ bgcolor: isDarkMode ? '#1D2125' : '#EBECF0' }}
+      {/* Add Member Modal */}
+      <Dialog 
+        open={openMemberModal} 
+        onClose={() => setOpenMemberModal(false)} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '3px',
+            bgcolor: isDarkMode ? '#22272B' : '#FFFFFF'
+          }
+        }}
       >
-        <CloseIcon fontSize="small" />
-      </IconButton>
-    </Box>
-  </DialogTitle>
-  
-  <DialogContent sx={{ pt: 3 }}>
-    <TextField
-      label="Full Name"
-      name="name"
-      value={memberForm.name}
-      onChange={handleMemberChange}
-      fullWidth
-      required
-      placeholder="e.g., John Doe"
-      sx={{ mb: 2 }}
-    />
-    
-    <TextField
-      label="Email Address"
-      name="email"
-      type="email"
-      value={memberForm.email}
-      onChange={handleMemberChange}
-      fullWidth
-      required
-      placeholder="john@example.com"
-      helperText="This will be used for login"
-      sx={{ mb: 2 }}
-    />
-    
-    {/* ✅ NEW: Password Field */}
-    <TextField
-      label="Initial Password"
-      name="password"
-      type="password"
-      value={memberForm.password}
-      onChange={handleMemberChange}
-      fullWidth
-      required
-      placeholder="Minimum 8 characters"
-      helperText="Set a secure password for this member to login"
-      sx={{ mb: 2 }}
-      InputProps={{
-        endAdornment: (
-          <InputAdornment position="end">
-            <IconButton
-              edge="end"
-              onClick={() => {
-                // Generate random password
-                const randomPass = Math.random().toString(36).slice(-10) + 
-                                   Math.random().toString(36).slice(-10).toUpperCase() + 
-                                   '!@#'[Math.floor(Math.random() * 3)];
-                setMemberForm({ ...memberForm, password: randomPass });
-              }}
+        <DialogTitle sx={{ borderBottom: `1px solid ${isDarkMode ? '#3D444D' : '#EBECF0'}` }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6" fontWeight="500" sx={{ color: isDarkMode ? '#B6C2CF' : '#172B4D' }}>
+              Add Team Member
+            </Typography>
+            <IconButton 
+              onClick={() => setOpenMemberModal(false)} 
               size="small"
-              title="Generate random password"
+              sx={{ bgcolor: isDarkMode ? '#1D2125' : '#EBECF0' }}
             >
-              <RefreshIcon fontSize="small" />
+              <CloseIcon fontSize="small" />
             </IconButton>
-          </InputAdornment>
-        )
-      }}
-    />
-    
-    <TextField
-      select
-      label="Role"
-      name="role"
-      value={memberForm.role}
-      onChange={handleMemberChange}
-      fullWidth
-      required
-      helperText="Select member's role in the organization"
-    >
-      <MenuItem value="MANAGER">Manager</MenuItem>
-      <MenuItem value="MEMBER">Member</MenuItem>
-    </TextField>
-    
-    {/* ✅ Password Preview */}
-    {memberForm.password && (
-      <Alert severity="info" sx={{ mt: 2, borderRadius: '3px' }}>
-        <Typography variant="body2" fontWeight="500">
-          Password Preview:
-        </Typography>
-        <Typography variant="body2" sx={{ fontFamily: 'monospace', mt: 0.5 }}>
-          {memberForm.password}
-        </Typography>
-        <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
-          Make sure to share this password securely with the new member
-        </Typography>
-      </Alert>
-    )}
-  </DialogContent>
-  
-  <DialogActions sx={{ borderTop: `1px solid ${isDarkMode ? '#3D444D' : '#EBECF0'}`, p: 2 }}>
-    <Button 
-      onClick={() => {
-        setOpenMemberModal(false);
-        setMemberForm({ name: '', email: '', role: 'MEMBER', password: '' });
-      }}
-      sx={{ textTransform: 'none', color: isDarkMode ? '#9FADBC' : '#42526E' }}
-    >
-      Cancel
-    </Button>
-    <Button 
-      variant="contained" 
-      onClick={handleCreateMember} 
-      disabled={!orgId || !memberForm.name || !memberForm.email || !memberForm.password}
-      sx={{ 
-        textTransform: 'none',
-        bgcolor: '#0052CC',
-        '&:hover': { bgcolor: '#0747A6' }
-      }}
-    >
-      Add Member
-    </Button>
-  </DialogActions>
-</Dialog>
-{/* ✅ NEW: Credentials Dialog */}
+          </Box>
+        </DialogTitle>
+        
+        <DialogContent sx={{ pt: 3 }}>
+          <TextField
+            label="Full Name"
+            name="name"
+            value={memberForm.name}
+            onChange={handleMemberChange}
+            fullWidth
+            required
+            placeholder="e.g., John Doe"
+            sx={{ mb: 2 }}
+          />
+          
+          <TextField
+            label="Email Address"
+            name="email"
+            type="email"
+            value={memberForm.email}
+            onChange={handleMemberChange}
+            fullWidth
+            required
+            placeholder="john@example.com"
+            helperText="This will be used for login"
+            sx={{ mb: 2 }}
+          />
+          
+          <TextField
+            label="Initial Password"
+            name="password"
+            type="password"
+            value={memberForm.password}
+            onChange={handleMemberChange}
+            fullWidth
+            required
+            placeholder="Minimum 8 characters"
+            helperText="Set a secure password for this member to login"
+            sx={{ mb: 2 }}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    edge="end"
+                    onClick={() => {
+                      const randomPass = Math.random().toString(36).slice(-10) + 
+                                         Math.random().toString(36).slice(-10).toUpperCase() + 
+                                         '!@#'[Math.floor(Math.random() * 3)];
+                      setMemberForm({ ...memberForm, password: randomPass });
+                    }}
+                    size="small"
+                    title="Generate random password"
+                  >
+                    <RefreshIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              )
+            }}
+          />
+          
+          <TextField
+            select
+            label="Role"
+            name="role"
+            value={memberForm.role}
+            onChange={handleMemberChange}
+            fullWidth
+            required
+            helperText={`Select member's role (${user?.organization?.type || 'COMPANY'})`}
+          >
+            {roleOptions.map(option => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </TextField>
+          
+          {memberForm.password && (
+            <Alert severity="info" sx={{ mt: 2, borderRadius: '3px' }}>
+              <Typography variant="body2" fontWeight="500">
+                Password Preview:
+              </Typography>
+              <Typography variant="body2" sx={{ fontFamily: 'monospace', mt: 0.5 }}>
+                {memberForm.password}
+              </Typography>
+              <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
+                Make sure to share this password securely with the new member
+              </Typography>
+            </Alert>
+          )}
+        </DialogContent>
+        
+        <DialogActions sx={{ borderTop: `1px solid ${isDarkMode ? '#3D444D' : '#EBECF0'}`, p: 2 }}>
+          <Button 
+            onClick={() => {
+              setOpenMemberModal(false);
+              setMemberForm({ name: '', email: '', role: 'MEMBER', password: '' });
+            }}
+            sx={{ textTransform: 'none', color: isDarkMode ? '#9FADBC' : '#42526E' }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            variant="contained" 
+            onClick={handleCreateMember} 
+            disabled={!orgId || !memberForm.name || !memberForm.email || !memberForm.password}
+            sx={{ 
+              textTransform: 'none',
+              bgcolor: '#0052CC',
+              '&:hover': { bgcolor: '#0747A6' }
+            }}
+          >
+            Add Member
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Credentials Dialog */}
       <Dialog
         open={credentialsDialog.open}
         onClose={() => setCredentialsDialog({ open: false, email: '', password: '', name: '' })}

@@ -11,7 +11,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
+    'workflows.apps.WorkflowsConfig',
     'rest_framework',
     "corsheaders",
     'accounts',
@@ -24,7 +24,6 @@ INSTALLED_APPS = [
     'comments',
     'reports',
     'drf_yasg',
-    'workflows',
 ]
 
 MIDDLEWARE = [

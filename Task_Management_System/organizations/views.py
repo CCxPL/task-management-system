@@ -394,3 +394,83 @@ def register_organization(request):
         },
         status=status.HTTP_201_CREATED
     )
+
+# ============================================================
+# ADMIN MANAGEMENT
+# ============================================================
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_organization_admins(request, org_id):
+    """
+    Get all admins of a specific organization (Super Admin only)
+    """
+    if not request.user.is_superuser:
+        raise PermissionDenied("Only Super Admin can view organization admins")
+    
+    try:
+        org = Organization.objects.get(pk=org_id)
+    except Organization.DoesNotExist:
+        return Response({"error": "Organization not found"}, status=404)
+    
+    # Get all admins for this organization
+    admins = OrganizationUser.objects.filter(
+        organization=org,
+        role__in=['ADMIN', 'ORG_ADMIN']
+    ).select_related('user')
+    
+    data = []
+    for org_user in admins:
+        data.append({
+            'id': org_user.user.id,
+            'username': org_user.user.username,
+            'email': org_user.user.email,
+            'role': org_user.role,
+            'is_active': org_user.is_active,
+            'joined_at': org_user.joined_at.isoformat() if org_user.joined_at else None,
+        })
+    
+    return Response(data)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def reset_admin_password(request, org_id, admin_id):
+    """
+    Reset admin password (Super Admin only)
+    """
+    if not request.user.is_superuser:
+        raise PermissionDenied("Only Super Admin can reset admin passwords")
+    
+    try:
+        org = Organization.objects.get(pk=org_id)
+        admin_user = User.objects.get(pk=admin_id)
+        
+        # Verify admin belongs to this organization
+        org_user = OrganizationUser.objects.get(
+            user=admin_user,
+            organization=org,
+            role__in=['ADMIN', 'ORG_ADMIN']
+        )
+        
+        # Generate new password
+        alphabet = string.ascii_letters + string.digits + '!@#$%^&*()'
+        new_password = ''.join(secrets.choice(alphabet) for i in range(12))
+        
+        # Update password
+        admin_user.password = make_password(new_password)
+        admin_user.save()
+        
+        return Response({
+            'message': f'Password reset successfully for {admin_user.username}',
+            'new_password': new_password,
+            'username': admin_user.username,
+            'email': admin_user.email,
+        })
+        
+    except Organization.DoesNotExist:
+        return Response({"error": "Organization not found"}, status=404)
+    except User.DoesNotExist:
+        return Response({"error": "Admin not found"}, status=404)
+    except OrganizationUser.DoesNotExist:
+        return Response({"error": "Admin not associated with this organization"}, status=404)

@@ -411,9 +411,9 @@ const handleDelete = (org) => {
                                     <TableCell>{org.members || 0}</TableCell>
                                     <TableCell align="right">
                                         <Tooltip title="View Details">
-                                            <IconButton size="small" onClick={() => handleViewDetails(org)}>
-                                                <Visibility fontSize="small" />
-                                            </IconButton>
+                                    <IconButton onClick={() => navigate(`/super-admin/organizations/${org.id}`)}>
+                                        <Visibility />
+                                    </IconButton>
                                         </Tooltip>
                                         <Tooltip title="Edit">
                                             <IconButton size="small" onClick={() => navigate(`/super-admin/organizations/${org.id}/edit`)}>
